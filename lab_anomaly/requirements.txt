@@ -1,0 +1,16 @@
+torch
+torchvision
+opencv-python
+numpy
+tqdm
+Pillow
+
+# VideoMAE v2（OpenGVLab 需 trust_remote_code）
+transformers>=4.36.0
+PyYAML
+
+# train_end2end 验证集 AUC（可选）
+scikit-learn
+
+# 训练曲线（可选）
+matplotlib
