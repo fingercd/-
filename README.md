@@ -1,160 +1,116 @@
-# Vit — 视频异常检测模块
+<div align="center">
 
-> 负责"看一小段视频里发生了什么"。基于 VideoMAE v2 + MIL（Multiple Instance Learning）实现视频级异常行为识别。
+# Video Anomaly Detection — Research Space
 
----
+**Exploring 3D Video Encoders & Machine Learning Methods for Robust Anomaly Recognition**
 
-## 这个模块能做什么
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-EE4C2C?logo=pytorch)](https://pytorch.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-| 能力 | 说明 |
-|------|------|
-| **视频异常检测** | 对一段连续视频（如 16 帧）判断是"正常"还是"异常" |
-| **端到端训练** | 从原始视频 → 预切 clip → 训练 VideoMAE + MIL → 输出 checkpoint |
-| **异步实时推理** | 缓存最近帧组成滑动窗口，异步线程推理，不阻塞主循环 |
-| **独立 RTSP 服务** | 可脱离主项目，单独作为视频流异常检测服务运行 |
+<p align="center">
+  <img src="docs/assets/vad_banner.png" alt="VAD Banner" width="800">
+</p>
 
----
+**Higher Accuracy · Better Generalization · Clearer Interpretability**
 
-## 在整个项目中的位置
+[中文介绍](README-CN.md)
 
-```
-yolo/（看见目标）
-    ↓ 提供视频帧
-Vit/（判断异常）
-    ↓ 触发可疑时
-vlm/（解释异常）
-    ↓ 输出结论
-web/（展示结果）
-```
-
-Vit 是**事件识别层**：YOLO 告诉系统"画面里有什么"，ViT 告诉系统"这段视频发生了什么"。
+</div>
 
 ---
 
-## 技术架构
+## What We Do
 
-### 模型组成
+This project is a dedicated research space for **Video Anomaly Detection (VAD)**. We systematically explore how modern **3D video encoders** and **machine learning paradigms** can push the boundaries of anomaly recognition accuracy on public benchmarks.
 
-```
-视频片段 (B, C, T, H, W)
-    ↓
-VideoMAE v2 Encoder
-    - Patch Embedding
-    - 12 层 Transformer
-    - CLS Token / Mean Pooling
-    ↓
-特征向量 (B, D)  D=768
-    ↓
-MIL Head
-    - Attention Pooling 或 Top-K 聚合
-    - 异常分数分支（可选）
-    ↓
-分类结果 (normal / anomaly) + 异常概率 + ranking 分数
-```
+Unlike standard action recognition, anomaly detection demands understanding the **joint evolution of spatial semantics and temporal dynamics** over continuous video streams. Anomalies are rare, diverse, and deeply context-dependent — making this one of the most challenging open problems in computer vision.
 
-### 核心组件
-
-| 组件 | 文件 | 作用 |
-|------|------|------|
-| **VideoMAE v2 编码器** | `lab_anomaly/models/vit_video_encoder.py` | 把视频 clip 编码成 768 维特征向量 |
-| **MIL 分类头** | `lab_anomaly/models/mil_head.py` | 聚合多 clip 特征，输出视频级分类 |
-| **排序损失** | `lab_anomaly/models/ranking_loss.py` | 训练时帮助区分正常/异常片段 |
+Our mission is simple: **build a flexible, extensible training framework where encoders can be swapped, heads can be plugged in, and ideas can be benchmarked quickly.**
 
 ---
 
-## 目录结构
+## Research Directions
 
-```
-Vit/
-├── README.md                  # 本文件（模块总览）
-├── docs/                      # 补充学习笔记和历史设计思路
-│
-├── lab_anomaly/               # 核心代码（训练 + 推理）
-│   ├── data/                  # 数据读取与预处理
-│   ├── models/                # VideoMAE v2 + MIL 模型定义
-│   ├── tool/                  # 训练前准备工具
-│   ├── train/                 # 训练入口
-│   ├── infer/                 # 推理入口
-│   └── configs/               # YAML 配置文件
-│
-└── lab_dataset/               # 数据目录约定
-    ├── raw_videos/            # 原始视频
-    ├── labels/                # video_labels.csv 标签文件
-    └── derived/               # 中间产物和训练输出
-        ├── preclips/          # 离线预切 clip
-        └── end2end_classifier/# 训练产物（checkpoint）
-```
+### 3D Video Encoder Benchmarking
 
----
+The choice of spatiotemporal backbone is the single most impactful decision in a VAD pipeline. We evaluate and compare:
 
-## 主流程（当前推荐）
+- **Self-supervised transformers** (VideoMAE v2, Video Swin) — rich transferable features from large-scale unlabeled video pretraining.
+- **Hybrid architectures** (UniFormerV2) — combining local inductive biases with global attention for peak accuracy.
+- **Classic baselines** (I3D, SlowFast, R(2+1)D) — ensuring academic rigor through historical comparisons.
+- **Next-generation models** (Video Mamba, state-space models) — tackling long-video modeling with linear complexity.
+- **Vision-language encoders** (UMT-L, InternVid, Video-LLaVA) — enabling zero-shot and open-vocabulary anomaly detection.
 
-### 第一步：准备视频和标签
+### Weakly-Supervised Learning
 
-```
-lab_dataset/raw_videos/        ← 放入原始视频
-lab_dataset/labels/video_labels.csv  ← 编辑标签
-```
+Most real-world surveillance data only provides video-level labels (normal vs. abnormal), without frame-level annotations. We focus on:
 
-CSV 格式：
-```csv
-video_id,video_path,label,camera_id,start_time,end_time,note
-```
-- `label`：`normal` 或异常类名（如 `fall`、`violent`、`fire_smoke`）
-- `video_path`：相对于 `lab_dataset/` 的路径
+- Multiple Instance Learning (MIL) and its variants — learning to attend to anomalous snippets within untrimmed videos.
+- Ranking and margin losses — separating normal and abnormal temporal dynamics.
+- Pseudo-labeling and self-training — iteratively refining frame-level predictions from coarse video-level supervision.
 
-### 第二步：离线预切 clip
+### Transfer & Generalization
 
-```bash
-python Vit/lab_anomaly/tool/precompute_clips.py
-```
+- **Cross-dataset evaluation** — training on UCF-Crime, testing on XD-Violence or custom surveillance streams.
+- **Pretraining strategies** — leveraging Kinetics, InternVid, and video-text contrastive learning before domain adaptation.
+- **Progressive fine-tuning** — stage-wise backbone unfreezing for stable transfer from pretrained weights to target domains.
 
-- 读取 `video_labels.csv` 和原始视频
-- 按配置参数切成固定长度的 clip（`.npz` 格式）
-- 输出到 `lab_dataset/derived/preclips/`
+### Emerging Paradigms
 
-### 第三步：端到端训练
-
-```bash
-python Vit/lab_anomaly/train/train_end2end.py
-```
-
-- 读取预切 clip
-- 三阶段渐进解冻训练：
-  1. **head_only**：30 epochs，lr=1e-3，冻结全部 backbone
-  2. **unfreeze_2**：20 epochs，lr=5e-5，解冻最后 2 层
-  3. **unfreeze_4**：15 epochs，lr=2e-5，解冻最后 4 层
-- 损失：CE Loss + λ * MIL Ranking Loss
-- 输出到 `lab_dataset/derived/end2end_classifier/`
-
-### 第四步：实时推理
-
-**接入主项目**：
-- 被 `web/services/runtime_manager.py` 调用
-- 使用 `lab_anomaly/infer/known_event_runtime.py`
-
-**独立运行**：
-```bash
-python Vit/lab_anomaly/infer/rtsp_service.py
-```
+- **Multimodal fusion** — integrating audio cues (explosions, screams) with video for richer anomaly signatures.
+- **Explainable VAD** — using vision-language models to generate textual explanations for detected anomalies.
+- **Long-range temporal modeling** — moving beyond 16-frame clips to capture slowly unfolding anomalous events.
 
 ---
 
-## 关键参数对齐表
+## Datasets of Interest
 
-| 参数 | 预切阶段 | 训练阶段 | 推理阶段 | 说明 |
-|------|----------|----------|----------|------|
-| `frames_per_clip` / `clip_len` | ✅ | ✅ | ✅ | 每片段多少帧，必须一致 |
-| `encoder_model_name` | — | ✅ | ✅ | 编码器名称，必须一致 |
-| `window_stride` | — | — | ✅ | 滑窗步长，控制推理频率 |
+We benchmark primarily on the following standard VAD datasets:
 
-> ⚠️ 这些参数前后不一致，轻则效果变差，重则直接报错。
+| Dataset | Setting | Key Characteristics |
+|---------|---------|---------------------|
+| **UCF-Crime** | Weakly-supervised | 1,900 real-world surveillance videos, 13 anomaly categories |
+| **XD-Violence** | Weakly-supervised | 4,754 videos with audio, multi-scene violence detection |
+| **ShanghaiTech** | Frame-level GT | 437 videos across 13 campus scenes |
+| **CUHK Avenue** | Frame-level GT | 37 videos, pedestrian-focused anomalies |
+| **UBnormal** | Synthetic GT | Virtually generated diverse anomalies for data augmentation |
 
 ---
 
-## 注意事项
+## Current Status
 
-1. **编码器模型名**：当前主线使用 `OpenGVLab/VideoMAEv2-Base`，首次运行会自动下载预训练权重
-2. **Meta Tensor 修复**：某些 transformers 版本下 `pos_embed` 可能残留 meta tensor，代码中已包含自动修复（重建正弦位置编码）
-3. **训练/推理帧数对齐**：`clip_len`、`frame_stride`、`window_stride` 在训练脚本和推理代码中必须一致
-4. **数据路径**：`video_labels.csv` 中的路径建议使用相对于 `lab_dataset/` 的路径，便于迁移
+- **Baseline established**: VideoMAE v2 + MIL attention with progressive three-stage fine-tuning.
+- **Next steps**: Integrate Video Swin Transformer, UniFormerV2, and Video Mamba backbones for head-to-head comparison.
+
+---
+
+## Roadmap
+
+- [x] VideoMAE v2 + MIL baseline
+- [ ] Video Swin Transformer integration
+- [ ] UniFormerV2 backbone benchmark
+- [ ] Video Mamba for long-video anomaly detection
+- [ ] UMT-L / InternVid zero-shot evaluation
+- [ ] XD-Violence audio-visual fusion
+- [ ] Vision-language model explainable VAD
+
+---
+
+## Acknowledgements
+
+This project draws inspiration from the broader VAD research community, including VideoMAE, RTFM, MGFN, VERA, and the Awesome Video Anomaly Detection survey repositories.
+
+---
+
+## License
+
+MIT License.
+
+---
+
+<div align="center">
+
+**⭐ Star this repo if you find the research direction interesting! ⭐**
+
+</div>
