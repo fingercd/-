@@ -9,7 +9,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 <p align="center">
-  <img src="docs/assets/vad_banner.png" alt="VAD Banner" width="800">
+  <img src="lab_anomaly/configs/vad_banner.png" alt="VAD Banner" width="800">
 </p>
 
 **Higher Accuracy · Better Generalization · Clearer Interpretability**
