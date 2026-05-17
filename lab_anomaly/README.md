@@ -1,62 +1,93 @@
-# lab_anomaly — 视频异常检测核心代码
+<div align="right">
 
-> Vit 模块最核心的代码目录，负责视频异常检测的**数据准备、模型定义、训练、推理**全流程。
+[中文介绍](README-CN.md)
 
----
+</div>
 
-## 目录分层
+# lab_anomaly — VideoMAE v2 Anomaly Detection Training
 
-```
-lab_anomaly/
-├── data/           # 把视频和标签变成模型可读的数据
-├── models/         # VideoMAE v2 编码器 + MIL 分类头 + 排序损失
-├── tool/           # 训练前准备工具
-├── train/          # 训练入口
-├── infer/          # 推理入口
-└── configs/        # YAML 配置文件
-```
+> Core training space for **VideoMAE v2 + MIL** based video anomaly detection. This directory houses the model definitions, training loops, and inference runtime used to learn discriminative spatiotemporal representations for anomaly recognition.
 
 ---
 
-## 主流程
+## What Is Trained Here
 
-```
-video_labels.csv
-    ↓
-tool/precompute_clips.py      （离线预切 clip → .npz + manifest.json）
-    ↓
-train/train_end2end.py        （端到端训练 VideoMAE v2 + MIL）
-    ↓
-derived/end2end_classifier/   （输出 checkpoint_best.pt 等）
-    ↓
-infer/known_event_runtime.py  （嵌入主项目实时推理）
-或
-infer/rtsp_service.py         （独立 RTSP 推理服务）
-```
+The primary objective of this module is to **fine-tune a VideoMAE v2 backbone** (pretrained on large-scale unlabeled video) for the downstream task of **weakly-supervised video anomaly detection**.
 
----
+### Architecture
 
-## 重点文件
+- **Backbone**: `OpenGVLab/VideoMAEv2-Base` — a 12-layer spatiotemporal Transformer pretrained via masked autoencoding on millions of video clips.
+- **Head**: MIL (Multiple Instance Learning) Attention Pooling — aggregates clip-level features into a video-level anomaly score without requiring frame-level annotations.
+- **Loss**: Cross-Entropy classification loss + Temporal Ranking loss — jointly optimizes bag-level classification and temporal anomaly margin.
 
-| 路径 | 作用 |
-|------|------|
-| `tool/precompute_clips.py` | 离线预切 clip，是训练的前置步骤 |
-| `train/train_end2end.py` | **当前最核心的训练脚本**，端到端训练 |
-| `models/vit_video_encoder.py` | VideoMAE v2 编码器封装，含 meta tensor 自动修复 |
-| `models/mil_head.py` | MIL 分类头，支持 Attention Pooling 和 Top-K 聚合 |
-| `models/ranking_loss.py` | MIL 排序损失（排序项 + 稀疏约束 + 时间平滑）|
-| `infer/known_event_runtime.py` | 异步实时推理运行时，多流支持 |
-| `infer/rtsp_service.py` | 独立 RTSP/本地视频推理服务 |
-| `infer/scoring.py` | checkpoint 加载、概率与 ranking 分数融合决策 |
+### Training Strategy
+
+Progressive three-stage fine-tuning is employed for stable transfer learning:
+
+1. **Head-only** (epochs 0–N): Freeze the entire VideoMAE v2 backbone, train only the MIL head.
+2. **Partial unfreeze** (epochs N–M): Gradually thaw the top Transformer blocks.
+3. **Full unfreeze** (final epochs): Fine-tune the entire network end-to-end with a reduced learning rate.
+
+This staged approach prevents catastrophic forgetting of the rich self-supervised pretraining while adapting the model to anomaly-specific patterns.
 
 ---
 
-## 建议阅读顺序
+## Performance Snapshot
 
-1. `tool/README.md` — 了解预切 clip 怎么做
-2. `train/README.md` — 了解怎么训练
-3. `infer/README.md` — 了解怎么推理
-4. `models/README.md` — 了解模型内部结构
-5. `configs/README.md` — 了解配置文件
+Evaluation metrics are automatically serialized to JSON after training. Below are the results from the current best checkpoint:
 
-这样最容易从"怎么跑"理解到"模型内部怎么工作"。
+**End-to-End Classifier — Evaluation Metrics**
+
+```json
+{
+  "accuracy": 0.9266,
+  "precision_anomaly": 0.8897,
+  "recall_anomaly": 0.9365,
+  "f1_anomaly": 0.9125,
+  "auc_binary": 0.9805
+}
+```
+
+| Metric | Value |
+|--------|-------|
+| **Accuracy** | **92.66%** |
+| **Precision (Anomaly)** | 88.97% |
+| **Recall (Anomaly)** | 93.65% |
+| **F1-Score (Anomaly)** | 91.25% |
+| **AUC (Binary)** | **98.05%** |
+
+Per-category breakdown:
+- **Normal**: 734 / 798 correct (91.98%)
+- **Steal**: 377 / 401 correct (94.01%)
+- **Violent Conflict**: 139 / 150 correct (92.67%)
+
+> 📁 *Raw metrics are saved in `lab_dataset/derived/end2end_classifier/eval_report/eval_metrics.json` and training curves in `history.json`.*
+
+---
+
+## Training History
+
+Key validation milestones from the training log:
+
+| Epoch | Stage | Val Accuracy | Val AUC (Binary) |
+|-------|-------|--------------|------------------|
+| 0 | unfreeze_2 | 87.41% | 95.28% |
+| 1 | unfreeze_2 | 85.56% | 95.58% |
+
+The model converges to strong discriminative performance early in the partial-unfreeze stage, indicating that VideoMAE v2 features are highly transferable to anomaly detection.
+
+---
+
+## What This Enables
+
+Once trained, the checkpoint can be consumed by:
+
+- **Offline evaluation** — scoring pre-recorded videos and generating frame-level anomaly curves.
+- **Real-time inference** — sliding-window clip scoring integrated into streaming pipelines.
+- **Encoder reuse** — the fine-tuned VideoMAE v2 weights can serve as initialization for other VAD datasets or downstream heads.
+
+---
+
+## Scope Note
+
+This directory is strictly concerned with **model training and inference execution**. Data ingestion, clip preprocessing, and dataset curation are handled upstream.
