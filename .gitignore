@@ -12,6 +12,7 @@ htmlcov/
 
 # Local environments and editors
 .venv/
+.venv-*/
 .idea/
 .vscode/
 
