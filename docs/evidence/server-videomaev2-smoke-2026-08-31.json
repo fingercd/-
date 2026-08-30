@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "date": "2026-08-31",
+  "host": "ibnode3",
+  "project_commit": "9b65682b5559b3bd4b777d8398b69f460ef1243c",
+  "runtime": {
+    "python": "3.11.15",
+    "torch": "2.5.1+cu124",
+    "transformers": "4.56.1",
+    "device": "cpu"
+  },
+  "adapter": "videomaev2",
+  "checkpoint_id": "videomaev2-base-hf",
+  "checkpoint_sha256": "ebffa1874066ea227330016e58a848e9e2bb1ff5605746459bded1122a42176d",
+  "input": {
+    "path": "data/smoke/surveillance-smoke.mp4",
+    "num_frames": 64,
+    "fps": 1.0,
+    "width": 320,
+    "height": 240
+  },
+  "output": {
+    "features_shape": [1, 1568, 768],
+    "features_dtype": "torch.float32",
+    "pooled_shape": [1, 768],
+    "timeline_tokens": 1568,
+    "sequence_source": "observed_backbone",
+    "timeline_policy": "uniform_token_to_frame_approximation"
+  },
+  "elapsed_seconds": 6.646298503503203,
+  "peak_gpu_memory_bytes": null,
+  "limitations": [
+    "The server GPU pool was occupied, so this fixed-clip smoke used CPU.",
+    "This proves real checkpoint loading and server inference, not UCF-Crime accuracy.",
+    "The input is a deterministic generated MP4 rather than a benchmark video."
+  ]
+}

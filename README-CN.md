@@ -22,7 +22,7 @@ VADBench 用同一套数据、时间轴和产物协议比较两条视频建模�
 | 弱监督/强监督训练 | ✅ | Attention/Top-k MIL 与 temporal head |
 | UCF 帧级评测 | ✅ | micro frame ROC-AUC/AP |
 | 本地 mock/合成测试 | ✅ | PyTorch 与无 PyTorch 路径均覆盖 |
-| VideoMAE V2 真权重冒烟 | ✅（本地 CPU） | [证据](docs/evidence/local-videomaev2-smoke-2026-08-31.json) |
+| VideoMAE V2 真权重冒烟 | ✅（本地与 node3 CPU） | [本地证据](docs/evidence/local-videomaev2-smoke-2026-08-31.json) · [服务器证据](docs/evidence/server-videomaev2-smoke-2026-08-31.json) |
 | HERMES 真权重冒烟 | 服务器验证中 | 必须证明官方原生压缩入口与两 chunk 状态复用 |
 | 真实 UCF 全量结果 | 尚未声称 | 仓库不含数据，必须使用官方视频与完整清单运行 |
 
