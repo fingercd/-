@@ -26,7 +26,9 @@ train = [
   "safetensors>=0.4",
 ]
 videomaev2 = [
+  "easydict>=1.13",
   "torch>=2.2",
+  "timm>=1.0",
   "transformers>=4.46,<6",
   "Pillow>=10",
 ]
