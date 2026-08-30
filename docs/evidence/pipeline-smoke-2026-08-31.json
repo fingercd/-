@@ -23,6 +23,15 @@
     "frame_auc": 1.0,
     "frame_ap": 1.0
   },
+  "server_replay": {
+    "host": "ibnode3",
+    "status": "passed",
+    "global_steps": 1,
+    "checkpoint_sha256": "d27ec99c2b745330579946136b39f1dafce6cac03fac0c26cda905df6073e8d0",
+    "checkpoint_size_bytes": 35722,
+    "frame_auc": 1.0,
+    "frame_ap": 1.0
+  },
   "commands": [
     "python scripts/create_pipeline_smoke_fixture.py outputs/pipeline-smoke-fixture",
     "python -m vadbench train -c outputs/pipeline-smoke-fixture/config.yaml --features outputs/pipeline-smoke-fixture/features --max-steps 1",

@@ -45,12 +45,12 @@ EncoderOutput -> FeatureStore -> Task/Head -> train/evaluate -> ArtifactStore
 
 ## 2026-08-31 实施状态快照
 
-本计划同时记录已落地模块与尚待执行的服务器工作，不能把“文件已存在”理解为目标已完成：
+本计划同时记录已落地模块与后续性能工作，不能把正确性冒烟理解为完整 benchmark：
 
 - CLI 已接通 `doctor`、`config`、`encoders`、`manifest`、`weights`、`extract`、`train`、`evaluate` 与 `smoke`；
 - 核心契约、两类 adapter、data、feature/artifact、training/metrics 与 head-only runner 已落地；HERMES adapter 已区分并接通官方 `predict_and_compress` 与框架外部 policy；
 - 官方标注的 1-based inclusive → 0-based half-open 转换已有 `165..240 → [164,240)` 金标测试；
-- `/users/fotile/VAD` 已创建，本地权重和上游源码已冻结；服务器离线环境、完整权重校验、两条真实冒烟与微型训练/评测仍以最终运行证据为准。
+- `/users/fotile/VAD` 已完成离线部署、167 项测试、两套 SHA256/upstream 校验、数据软链、两条真权重 CPU 冒烟与服务器微型 train/evaluate 闭环；证据在 `docs/evidence/`。A100 `predict` 模式吞吐/峰值显存仍是性能跟进，不阻塞框架正确性交付。
 
 ## 文件责任图
 
@@ -290,7 +290,7 @@ EncoderOutput -> FeatureStore -> Task/Head -> train/evaluate -> ArtifactStore
 - 修改：`src/vadbench/cli.py`
 - 修改：`tests/test_cli.py`
 
-**待实现的最终命令：**
+**已实现的最终命令：**
 
 ```text
 vadbench manifest import-ucf
@@ -415,7 +415,7 @@ cd "$VAD_ROOT"
 **准备：**
 
 - node2 clone `https://github.com/haowei-freesky/HERMES` 到 `$VAD_ROOT/external/hermes`，checkout lock 中的 `8d699b16a6bedb9086c1b39ec4253c6a1d1ce789`；
-- 建立与主框架隔离但可调用的 HERMES 环境；按官方 LLaVA requirements 安装 FlashAttention；
+- 建立与主框架隔离但可调用的 HERMES 环境；固定官方 Transformers commit。FlashAttention 可作为 GPU 性能优化，正确性 fallback 必须仍可运行并记录实现；
 - 下载并校验 pinned `llava-hf/llava-onevision-qwen2-0.5b-ov-hf` 到 `$VAD_ROOT/weights/hermes-llava-ov-0.5b`；
 - 不在 node3 尝试联网补包。
 
@@ -445,6 +445,8 @@ HERMES 冒烟在 `.venv-hermes` 内运行，既保留上游依赖隔离，又让
 - 真实运行没有使用 fake model；日志能追溯 HERMES commit 与 0.5B 权重 SHA。
 
 **提交：** `test(smoke): 记录HERMES 0.5B真实流式缓存冒烟`
+
+**2026-08-31 证据：** node3 CPU 上以 2 帧/chunk、2 chunks、64 visual-token 预算运行真实 0.5B 权重；第二步 `cache_hit=true`、复用 77 tokens，官方 `static_pseudo` 两次把每层 KV 压到 `13+64=77`。详见 `docs/evidence/server-hermes-smoke-2026-08-31.json`。GPU `predict` 模式只作为后续性能基准。
 
 ## 任务 13：微型训练/评测闭环
 

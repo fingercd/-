@@ -5,7 +5,7 @@
   "host": "ibnode3",
   "project_root": "/users/fotile/VAD",
   "branch": "feat/video-encoder-benchmark-framework",
-  "commit": "b6f95e07d746de851973d9b0018a515bc04581c7",
+  "commit": "381e8649ba52c463808eab879112a4afb1fff731",
   "runtime": {
     "python": "3.11.15",
     "torch": "2.5.1+cu124",
@@ -13,6 +13,11 @@
     "transformers": "4.56.1",
     "opencv": "4.11.0",
     "cuda_available": true
+  },
+  "hermes_runtime": {
+    "venv": "/users/fotile/VAD/.venv-hermes",
+    "transformers": "4.45.0.dev0",
+    "transformers_source_commit": "66bc4def9505fa7c7fe4aa7a248c34a026bb552b"
   },
   "tests": {
     "passed": 167,
