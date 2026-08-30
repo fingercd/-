@@ -217,6 +217,8 @@ JSON 只存索引和元数据；大 tensor 放 NPZ/NPY。encoder fingerprint 覆
 
 服务器目标目录是 `/users/fotile/VAD`。node2 可用时应作为集群外网出口；node2 不可用时，可以在本地冻结代码/权重/轮子并上传到 node3，共享 `/users` 上只保留一份。
 
+当前 node3 离线环境、167 项测试、两套权重 SHA256、上游 commit 与数据软链状态见 [部署证据](docs/evidence/server-deployment-2026-08-31.json)。
+
 ```bash
 export VAD_PROJECT_ROOT=/users/fotile/VAD
 bash scripts/server/bootstrap_offline.sh
