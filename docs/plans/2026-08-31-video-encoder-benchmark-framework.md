@@ -39,7 +39,7 @@ EncoderOutput -> FeatureStore -> Task/Head -> train/evaluate -> ArtifactStore
 
 1. `VideoEncoderAdapter` 与 `StreamingVideoEncoderAdapter` 分开，固定 clip 模型不能伪装成流式模型。
 2. `CacheKind` 固定为 `decoder_kv`、`vision_tokens`、`visual_memory`；HERMES 暴露的是 LLM decoder KV，分类特征则来自 decoder 前的 projected visual token。
-3. cache policy 注入 adapter，不把 `identity`、keep-recent 或后续压缩算法写死在模型代码里。
+3. 通用 cache policy 注入 adapter；HERMES 等上游原生策略以独立 adapter 配置和遥测接通，不能用 keep-recent 冒充。
 4. 原始视频、权重、第三方 checkout 与大特征不进 Git；Git 只保存 manifest/schema、revision、checksum、配置和小型运行证据。
 5. UCF-Crime 弱监督与时间强监督是两个明确 task；强监督来源不足时不能从文件名或 caption 自动造真值。
 
@@ -47,11 +47,10 @@ EncoderOutput -> FeatureStore -> Task/Head -> train/evaluate -> ArtifactStore
 
 本计划同时记录已落地模块与尚待执行的服务器工作，不能把“文件已存在”理解为目标已完成：
 
-- 已有 CLI：`doctor`、`config`、`encoders`、`manifest`、`weights`；
-- **尚未接入 CLI：** `extract`、`train`、`evaluate`、`smoke`，任务 8 完成前下文这些命令不可运行；
-- 核心契约、两类 adapter、data、artifact、training/metrics 模块已有单元测试实现，但真实模型/真实视频尚需服务器证据；
-- 正式 frame AUC 必须先通过官方 1-based inclusive 标注到内部 0-based half-open 的转换门禁；
-- `/users/fotile/VAD` 部署、权重下载、两条真实冒烟与微型训练/评测仍是待实施项。
+- CLI 已接通 `doctor`、`config`、`encoders`、`manifest`、`weights`、`extract`、`train`、`evaluate` 与 `smoke`；
+- 核心契约、两类 adapter、data、feature/artifact、training/metrics 与 head-only runner 已落地；HERMES adapter 已区分并接通官方 `predict_and_compress` 与框架外部 policy；
+- 官方标注的 1-based inclusive → 0-based half-open 转换已有 `165..240 → [164,240)` 金标测试；
+- `/users/fotile/VAD` 已创建，本地权重和上游源码已冻结；服务器离线环境、完整权重校验、两条真实冒烟与微型训练/评测仍以最终运行证据为准。
 
 ## 文件责任图
 

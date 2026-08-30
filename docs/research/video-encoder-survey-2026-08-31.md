@@ -95,7 +95,7 @@ VideoMAE V2 的主体是对一个给定视频 clip 做双向自注意力的 ViT 
 
 选择依据：
 
-- 直接研究 decoder KV，和用户拟开展的 KV 压缩工作同层；training-free，可先隔离推理机制。
+- 直接研究 decoder KV，和用户拟开展的 KV 压缩工作同层；该缓存策略无需额外训练，可先隔离推理机制。
 - 0.5B 是官方支持范围，下载、显存和服务器冒烟风险小于 7B/32B。
 - 可以在同一 adapter 中运行 `identity` 与 HERMES policy，避免模型/采样变化冒充压缩收益。
 

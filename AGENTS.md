@@ -38,7 +38,7 @@
 
 ## 服务器约束
 
-- `node2` 是集群唯一外网出口：Git 拉取/推送、Hugging Face 权重下载和第三方仓库获取均在 `node2` 完成。
+- `node2` 是集群唯一外网出口，正常情况下由它完成 Git/Hugging Face 获取；若 node2 传输层不可达，可在本地按锁文件冻结并校验资产，再离线上传到 node3，必须记录这一偏离。
 - `node3` 无外网：只运行已经同步好的代码、依赖、权重和数据；失败时先排除缺失离线资产，不反复尝试联网。
 - 部署前后记录 `hostname`、Git commit、Python/PyTorch/CUDA 版本、GPU、可用磁盘和数据软链接解析结果。
 - 下载前用 `df -h` 和目标文件预估体积检查空间；权重必须落到明确目录，禁止占满系统盘或用户家目录。
@@ -50,7 +50,7 @@
 - 固定 clip adapter 实现 `VideoEncoderAdapter`；真正跨 chunk 复用状态的 adapter 才实现 `StreamingVideoEncoderAdapter`。
 - 必须分别标注 `vision_tokens`、`visual_memory` 和 `decoder_kv`。Q-Former 中充当 key/value 的视觉特征不等同于语言模型 decoder KV cache。
 - 不得因为模型内部使用 Transformer、SSM，或推理时设置了 `use_cache=True`，就宣称视觉编码器支持跨视频片段缓存；必须有可观察的 `StreamState`、缓存更新和等价性/语义测试。
-- 缓存策略通过 `CachePolicy` 注入，不在具体 adapter 内硬编码；`identity` 是无压缩对照，压缩实验必须同时记录预算、保留率、峰值显存、吞吐/延迟和精度。
+- 通用缓存策略通过 `CachePolicy` 注入；上游原生策略（如 HERMES `predict_and_compress`）由 adapter 以独立配置和遥测显式接通，不得伪装成通用 `keep_recent`。`identity` 是框架侧无损对照，压缩实验必须同时记录预算、保留率、峰值显存、吞吐/延迟和精度。
 
 ## UCF-Crime 协议
 

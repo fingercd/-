@@ -1,116 +1,247 @@
-<div align="center">
+# VADBench：可插拔视频编码器与 UCF-Crime 基准框架
 
-# 视频异常检测 —— 研究空间
+VADBench 用同一套数据、时间轴和产物协议比较两条视频建模路线：
 
-**探索三维视频编码器与机器学习方法，实现更精准的异常识别**
+- **无状态固定 clip 编码器**：首个实现是 VideoMAE V2 Base。每个 clip 独立前向，不支持跨 clip KV cache。
+- **长视频流式上下文方法**：首个实现是 HERMES + LLaVA-OneVision-Qwen2-0.5B。它缓存并压缩的是语言模型 **decoder KV**，同时导出 decoder 前的视觉 token；它不是“带 KV cache 的视觉编码器”。
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-EE4C2C?logo=pytorch)](https://pytorch.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+首个 benchmark 是 UCF-Crime。框架覆盖官方 split 导入、32 段兼容采样、冻结特征抽取、弱监督 MIL、显式时序强监督、帧级 ROC-AUC/AP、缓存压缩注入和可追溯 JSON/JSONL 产物。原来的 `lab_anomaly/` VideoMAE V2 + MIL 代码仍保留，新的实验从 `src/vadbench/` 进入。
 
-<p align="center">
-  <img src="lab_anomaly/configs/vad_banner.png" alt="VAD Banner" width="800">
-</p>
+[English](README.md) · [编码器调研](docs/research/video-encoder-survey-2026-08-31.md) · [UCF-Crime 协议](docs/research/ucf-crime-protocol.md) · [实施计划](docs/plans/2026-08-31-video-encoder-benchmark-framework.md)
 
-**更高准确率 · 更强泛化性 · 更清晰可解释性**
+## 当前实现状态
 
-[English Version](README.md)
+| 能力 | 状态 | 说明 |
+|---|---:|---|
+| 统一 `BTHWC uint8 → features[B,S,D]` | ✅ | 每个 token 保留秒/帧范围时间轴 |
+| Encoder 注册与能力协商 | ✅ | 不支持的 streaming/cache/梯度请求直接失败 |
+| UCF-Crime 官方清单与标注导入 | ✅ | 自动阻止 train/test 泄漏 |
+| VideoMAE V2 adapter | ✅ | 稳定 pooled 输出；可选内部 hook 序列 |
+| HERMES adapter | ✅ | decoder KV、position IDs、原生层次压缩与遥测 |
+| 特征仓和运行产物 | ✅ | 内容寻址 NPZ/NPY + 版本化 JSONL |
+| 弱监督/强监督训练 | ✅ | Attention/Top-k MIL 与 temporal head |
+| UCF 帧级评测 | ✅ | micro frame ROC-AUC/AP |
+| 本地 mock/合成测试 | ✅ | PyTorch 与无 PyTorch 路径均覆盖 |
+| VideoMAE V2 真权重冒烟 | ✅（本地 CPU） | [证据](docs/evidence/local-videomaev2-smoke-2026-08-31.json) |
+| HERMES 真权重冒烟 | 服务器验证中 | 必须证明官方原生压缩入口与两 chunk 状态复用 |
+| 真实 UCF 全量结果 | 尚未声称 | 仓库不含数据，必须使用官方视频与完整清单运行 |
 
-</div>
+HERMES 公开工作面向 VideoQA，并没有证明在 UCF-Crime 上优于固定 clip encoder。这里把它作为“真实 decoder-KV 流式路径”的首个高风险研究基线，而不是现成的 VAD SOTA。
 
----
+## 三类缓存/压缩
 
-## 我们在做什么
+| 类型 | 代表 | 框架标识 | 能否直接称视觉 encoder KV cache |
+|---|---|---|---:|
+| 视觉 token 压缩 | LongVU、VideoChat-Flash | `vision_tokens` | 否 |
+| 外部视觉记忆 | MA-LMM、MovieChat | `visual_memory` | 否 |
+| 语言模型 decoder KV | HERMES、InfiniPot-V、MuKV | `decoder_kv` | 否 |
 
-本项目是一个专注于**视频异常检测（Video Anomaly Detection, VAD）**的研究空间。我们系统性地探索现代 **3D 视频编码器** 与 **机器学习范式**，在公开基准数据集上不断突破异常识别的准确率上限。
+VideoMAE V2 属于第四种：固定 clip 的无状态表征编码器。它每次 forward 内部当然会计算注意力 K/V，但没有可复用的跨调用 `past_key_values`。
 
-与标准的动作识别不同，异常检测需要理解连续视频流中**空间语义与时序动态的联合演变**。异常事件稀少、种类多样、且高度依赖场景上下文——这使其成为计算机视觉中最具挑战性的开放问题之一。
+## 工程结构
 
-我们的目标很简单：**构建一个灵活、可扩展的训练框架，让编码器可以随意更换，检测头可以即插即用，新想法能够快速得到验证。**
+```text
+configs/                 实验与 encoder 配置
+docs/                    调研、协议和实施计划
+integrations/            上游 repo/commit/license 锁
+registry/                checkpoint revision、许可证与 SHA256
+schemas/                 manifest、feature index、prediction JSON Schema
+scripts/                 上游同步与服务器离线部署脚本
+src/vadbench/
+  contracts.py           encoder、时间轴、stream/cache 契约
+  data/                   UCF manifest、采样、视频 I/O、特征数据集
+  integrations/          VideoMAE V2 / HERMES adapter
+  engine/                特征抽取、训练 runner、评测
+  features.py            二进制特征仓与 JSONL 索引
+  artifacts.py           provenance、预测、指标、cache telemetry
+  cli.py                 `vadbench` 命令行
+tests/                    单元、契约与编排测试
+lab_anomaly/              旧版训练/推理代码，保留兼容
+```
 
----
+`data/`、`weights/`、`outputs/`、`external/` 的大文件均被 Git 忽略。仓库只提交占位、锁文件、schema 和代码。
 
-## 研究方向
+## 快速开始
 
-### 3D 视频编码器基准评测
+要求 Python 3.10–3.12。推荐 `uv`：
 
-时空骨干网络的选择是 VAD 流程中最关键的决定。我们评估并对比以下方向：
+```powershell
+uv venv --python 3.11 .venv
+uv pip install --python .venv/Scripts/python.exe -e ".[dev,train,video]"
+.venv/Scripts/python.exe -m pytest
+.venv/Scripts/python.exe -m vadbench doctor
+```
 
-- **自监督 Transformer**（VideoMAE v2、Video Swin）—— 从大规模无标注视频预训练中获得丰富的可迁移特征。
-- **混合架构**（UniFormerV2）—— 结合局部归纳偏置与全局注意力，追求极限精度。
-- **经典基线**（I3D、SlowFast、R(2+1)D）—— 通过历史对比确保学术严谨性。
-- **下一代模型**（Video Mamba、状态空间模型）—— 以线性复杂度解决长视频建模难题。
-- **视觉-语言编码器**（UMT-L、InternVid、Video-LLaVA）—— 实现零样本与开放词汇的异常检测。
+Linux：
 
-### 弱监督学习
+```bash
+uv sync --extra dev --extra train --extra video
+uv run pytest
+uv run vadbench doctor
+```
 
-大多数真实监控数据仅提供视频级标签（正常 vs. 异常），没有帧级标注。我们聚焦于：
+HERMES 应使用独立环境或服务器离线环境；不要把它的上游完整 pinned requirements 强塞进其他 encoder 环境。
 
-- **多示例学习（MIL）及其变体** —— 在未经修剪的视频中学习关注异常片段。
-- **排序与边界损失** —— 拉开正常与异常时序动态的差距。
-- **伪标签与自训练** —— 从粗糙的视频级监督中迭代精炼帧级预测。
+## 冻结上游代码和权重
 
-### 迁移与泛化
+上游代码按精确 commit 获取：
 
-- **跨数据集评估** —— 在 UCF-Crime 上训练，在 XD-Violence 或自定义监控流上测试。
-- **预训练策略** —— 利用 Kinetics、InternVid 和视频-文本对比学习，再进行领域自适应。
-- **渐进式微调** —— 分阶段逐步解冻骨干网络，实现从预训练权重到目标领域的稳定迁移。
+```bash
+python scripts/fetch_upstreams.py
+python scripts/fetch_upstreams.py --verify-only
+```
 
-### 新兴范式
+权重下载要求显式确认各自许可证：
 
-- **多模态融合** —— 将音频线索（爆炸、尖叫）与视频结合，获得更丰富的异常特征。
-- **可解释 VAD** —— 利用视觉-语言模型为检测到的异常生成文本解释。
-- **长程时序建模** —— 超越 16 帧片段，捕捉缓慢展开的异常事件。
+```bash
+vadbench weights fetch videomaev2-base-hf weights/videomaev2-base-hf \
+  --accept-license cc-by-nc-4.0
 
----
+vadbench weights fetch hermes-llava-ov-0.5b weights/hermes-llava-ov-0.5b \
+  --accept-license apache-2.0
 
-## 关注的数据集
+vadbench weights verify videomaev2-base-hf weights/videomaev2-base-hf
+vadbench weights verify hermes-llava-ov-0.5b weights/hermes-llava-ov-0.5b
+```
 
-我们主要在以下标准 VAD 数据集上进行基准评测：
+VideoMAE V2 的代码仓库是 MIT，但本项目锁定的 HF 权重是 CC-BY-NC-4.0；许可证不能混为一谈。
 
-| 数据集 | 设定 | 关键特点 |
-|--------|------|----------|
-| **UCF-Crime** | 弱监督 | 1,900 段真实监控视频，13 类异常事件 |
-| **XD-Violence** | 弱监督 | 4,754 段视频，含音频，多场景暴力检测 |
-| **ShanghaiTech** | 帧级真值 | 437 段视频，覆盖 13 个校园场景 |
-| **CUHK Avenue** | 帧级真值 | 37 段视频，聚焦行人异常 |
-| **UBnormal** | 合成真值 | 虚拟生成的多样化异常，用于数据增强 |
+## 构建 UCF-Crime manifest
 
----
+官方 `Anomaly_Train.txt` 含完整 1,610 个训练视频。官方 `Temporal_Anomaly_Annotation.txt` 的 290 行可确定测试视频和时序标注，因此测试列表可以省略：
 
-## 当前进展
+```bash
+vadbench manifest import-ucf \
+  --dataset-root data/raw/ucf_crime \
+  --train-split data/splits/Anomaly_Train.txt \
+  --temporal-annotations data/splits/Temporal_Anomaly_Annotation.txt \
+  --output-dir data/manifests/ucf_crime \
+  --require-files \
+  --probe-video-info
 
-- **基线已建立**：VideoMAE v2 + MIL 注意力，配合三阶段渐进式微调。
-- **下一步**：接入 Video Swin Transformer、UniFormerV2 和 Video Mamba 骨干网络进行直接对比。
+vadbench manifest validate data/manifests/ucf_crime/test.jsonl \
+  --dataset-root data/raw/ucf_crime \
+  --require-files
+```
 
----
+官方端点是 MATLAB 1-based inclusive；导入器会转换为 zero-based half-open `[raw_start-1, raw_end)` 并保留原始端点。例如 `165..240` 变成 `[164,240)`，覆盖 76 帧。
 
-## 路线图
+UCA 的时间戳自然语言事件可以用 `--uca-captions` 附加，但 `is_anomaly` 保持 `null`。没有显式审计的语义映射，不能把 UCA 所有区间当异常强监督。截止 2026-08-31，FS-UCF-Crime Zenodo 条目仍只有 placeholder。
 
-- [x] VideoMAE v2 + MIL 基线
-- [ ] Video Swin Transformer 接入
-- [ ] UniFormerV2 骨干网络基准评测
-- [ ] Video Mamba 长视频异常检测
-- [ ] UMT-L / InternVid 零样本评估
-- [ ] XD-Violence 音视频融合
-- [ ] 视觉-语言模型可解释 VAD
+## 抽取特征
 
----
+固定 clip 路径：
 
-## 致谢
+```bash
+vadbench extract \
+  -c configs/experiments/ucf_videomaev2_weak.yaml \
+  --split train
+```
 
-本项目深受视频异常检测研究社区的启发，包括 VideoMAE、RTFM、MGFN、VERA，以及 Awesome Video Anomaly Detection 综述仓库等优秀工作。
+流式 decoder-KV 路径：
 
----
+```bash
+vadbench extract \
+  -c configs/experiments/ucf_hermes_stream.yaml \
+  --split train \
+  --limit-videos 2
+```
+
+HERMES encoder 配置默认启用官方 `predict_and_compress()`。外部 `identity` 只是框架侧无损对照；`keep_recent` 属于另一条简单基线，不能称 HERMES 原生策略。
+
+## 训练检测头
+
+冻结特征训练不会加载大 encoder：
+
+```bash
+vadbench train \
+  -c configs/experiments/ucf_videomaev2_weak.yaml \
+  --features outputs/ucf-videomaev2-weak/features \
+  --max-steps 10
+```
+
+- `task.kind: weak_mil` 只需要视频级标签。
+- `task.kind: temporal_supervised` 必须具有显式 frame/segment 二值标注。
+- 只有整段视频的 normal/anomaly 标签仍属于时序定位的弱监督，不会因为标签确定就自动变成强监督。
+
+## 帧级评测
+
+预测必须符合 `schemas/prediction-v1.schema.json`，并带帧区间或秒区间：
+
+```bash
+vadbench evaluate \
+  -c configs/experiments/ucf_videomaev2_weak.yaml \
+  --predictions outputs/<run>/predictions/predictions.jsonl \
+  --manifest data/manifests/ucf_crime/test.jsonl \
+  --output outputs/<run>/evaluation/metrics.json
+```
+
+框架把所有测试视频的帧标签和分数拼接后计算 micro frame ROC-AUC，同时报告 AP。32 段是 Sultani-compatible 基线协议，不是数据集规定的唯一采样方式。
+
+## 真实权重冒烟
+
+```bash
+vadbench smoke \
+  -c configs/experiments/ucf_videomaev2_weak.yaml \
+  --video path/to/clip.mp4 \
+  --output outputs/smoke/videomaev2.json
+
+vadbench smoke \
+  -c configs/experiments/ucf_hermes_stream.yaml \
+  --video path/to/long-clip.mp4 \
+  --chunks 2 \
+  --output outputs/smoke/hermes.json
+```
+
+冒烟 JSON 会记录输入视频信息、输出 shape/dtype、耗时、峰值显存，以及 HERMES 原生压缩是否被调用、压缩前后 KV token 和缓存字节数。
+
+## 运行产物
+
+```text
+outputs/<run>/
+  provenance/run.json
+  features/index.jsonl
+  features/blobs/*.npz
+  cache_telemetry/events.jsonl
+  predictions/predictions.jsonl
+  metrics/metrics.json
+  training/checkpoints/final.pt
+  training/history.json
+  evaluation/metrics.json
+  evaluation/frame_scores.npz
+```
+
+JSON 只存索引和元数据；大 tensor 放 NPZ/NPY。encoder fingerprint 覆盖 adapter 配置、采样、权重 revision/checksum，避免误复用不兼容特征。
+
+## node3 离线部署
+
+服务器目标目录是 `/users/fotile/VAD`。node2 可用时应作为集群外网出口；node2 不可用时，可以在本地冻结代码/权重/轮子并上传到 node3，共享 `/users` 上只保留一份。
+
+```bash
+export VAD_PROJECT_ROOT=/users/fotile/VAD
+bash scripts/server/bootstrap_offline.sh
+bash scripts/server/verify_deployment.sh
+
+# 数据到位后，只创建显式、不可覆盖的软链接：
+bash scripts/server/link_ucf_crime.sh /users/fotile/datasets/UCF-Crime
+
+VAD_GPU=5 VAD_SMOKE_VIDEO=/users/fotile/VAD/data/smoke/surveillance-smoke.mp4 \
+  bash scripts/server/run_smokes.sh
+```
+
+脚本在启动前检查目标 GPU；不会抢占已使用超过 1 GiB 的设备。
+
+## 测试与质量门禁
+
+```bash
+python -m pytest
+python -m ruff check src tests scripts/fetch_upstreams.py
+python -m ruff format --check src tests scripts/fetch_upstreams.py
+python -m compileall src tests
+```
+
+真实权重通过是独立门禁，不能用 fake adapter 单测替代。
 
 ## 许可证
 
-MIT 许可证。
-
----
-
-<div align="center">
-
-**⭐ 如果你对这个研究方向感兴趣，请给本仓库点一颗 Star！⭐**
-
-</div>
+本仓库代码使用 MIT License。第三方上游代码、数据和权重遵循各自许可证；详见 `integrations/*/upstream.lock.yaml`、`registry/checkpoints.yaml` 与调研报告。

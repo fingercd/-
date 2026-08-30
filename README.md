@@ -1,116 +1,64 @@
-<div align="center">
+# VADBench
 
-# Video Anomaly Detection — Research Space
+VADBench is a pluggable video-encoder, training, evaluation, and cache-compression research framework for UCF-Crime.
 
-**Exploring 3D Video Encoders & Machine Learning Methods for Robust Anomaly Recognition**
+The first two reference paths are deliberately different:
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue)](https://www.python.org/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-EE4C2C?logo=pytorch)](https://pytorch.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+- **VideoMAE V2 Base** is a stateless fixed-clip representation encoder. It has no reusable cross-clip `past_key_values` API.
+- **HERMES + LLaVA-OneVision-Qwen2-0.5B** is a streaming VLM context method. It stores and compresses language-model decoder KV while exposing projected visual tokens for a classifier. It is not a visual encoder with native KV cache.
 
-<p align="center">
-  <img src="lab_anomaly/configs/vad_banner.png" alt="VAD Banner" width="800">
-</p>
+The framework provides versioned manifests, temporal provenance, fixed/streaming adapter contracts, content-addressed feature storage, weak MIL and explicit temporal supervision, frame-level ROC-AUC/AP, cache telemetry, pinned upstream revisions, and verified checkpoint downloads.
 
-**Higher Accuracy · Better Generalization · Clearer Interpretability**
+See the [full Chinese README](README-CN.md), [encoder survey](docs/research/video-encoder-survey-2026-08-31.md), [UCF-Crime protocol](docs/research/ucf-crime-protocol.md), and [implementation plan](docs/plans/2026-08-31-video-encoder-benchmark-framework.md).
 
-[中文介绍](README-CN.md)
+## Quick start
 
-</div>
+```bash
+uv sync --extra dev --extra train --extra video
+uv run pytest
+uv run vadbench doctor
+```
 
----
+Pin external source trees:
 
-## What We Do
+```bash
+uv run python scripts/fetch_upstreams.py
+uv run python scripts/fetch_upstreams.py --verify-only
+```
 
-This project is a dedicated research space for **Video Anomaly Detection (VAD)**. We systematically explore how modern **3D video encoders** and **machine learning paradigms** can push the boundaries of anomaly recognition accuracy on public benchmarks.
+Download checkpoints with explicit license acknowledgement:
 
-Unlike standard action recognition, anomaly detection demands understanding the **joint evolution of spatial semantics and temporal dynamics** over continuous video streams. Anomalies are rare, diverse, and deeply context-dependent — making this one of the most challenging open problems in computer vision.
+```bash
+uv run vadbench weights fetch videomaev2-base-hf weights/videomaev2-base-hf \
+  --accept-license cc-by-nc-4.0
+uv run vadbench weights fetch hermes-llava-ov-0.5b weights/hermes-llava-ov-0.5b \
+  --accept-license apache-2.0
+```
 
-Our mission is simple: **build a flexible, extensible training framework where encoders can be swapped, heads can be plugged in, and ideas can be benchmarked quickly.**
+Import the official UCF-Crime split and temporal annotations:
 
----
+```bash
+uv run vadbench manifest import-ucf \
+  --dataset-root data/raw/ucf_crime \
+  --train-split data/splits/Anomaly_Train.txt \
+  --temporal-annotations data/splits/Temporal_Anomaly_Annotation.txt \
+  --output-dir data/manifests/ucf_crime \
+  --require-files --probe-video-info
+```
 
-## Research Directions
+The importer converts the official MATLAB 1-based inclusive coordinates into zero-based half-open spans: `165..240` becomes `[164,240)`, covering 76 frames.
 
-### 3D Video Encoder Benchmarking
+Run a real-weight smoke test:
 
-The choice of spatiotemporal backbone is the single most impactful decision in a VAD pipeline. We evaluate and compare:
+```bash
+uv run vadbench smoke \
+  -c configs/experiments/ucf_videomaev2_weak.yaml \
+  --video path/to/clip.mp4
 
-- **Self-supervised transformers** (VideoMAE v2, Video Swin) — rich transferable features from large-scale unlabeled video pretraining.
-- **Hybrid architectures** (UniFormerV2) — combining local inductive biases with global attention for peak accuracy.
-- **Classic baselines** (I3D, SlowFast, R(2+1)D) — ensuring academic rigor through historical comparisons.
-- **Next-generation models** (Video Mamba, state-space models) — tackling long-video modeling with linear complexity.
-- **Vision-language encoders** (UMT-L, InternVid, Video-LLaVA) — enabling zero-shot and open-vocabulary anomaly detection.
+uv run vadbench smoke \
+  -c configs/experiments/ucf_hermes_stream.yaml \
+  --video path/to/long-clip.mp4 --chunks 2
+```
 
-### Weakly-Supervised Learning
+Large videos, weights, feature blobs, outputs, and external repositories are intentionally Git-ignored. The repository code is MIT-licensed; upstream code, datasets, and model weights retain their own licenses. In particular, the pinned VideoMAE V2 Base weights are CC-BY-NC-4.0.
 
-Most real-world surveillance data only provides video-level labels (normal vs. abnormal), without frame-level annotations. We focus on:
-
-- Multiple Instance Learning (MIL) and its variants — learning to attend to anomalous snippets within untrimmed videos.
-- Ranking and margin losses — separating normal and abnormal temporal dynamics.
-- Pseudo-labeling and self-training — iteratively refining frame-level predictions from coarse video-level supervision.
-
-### Transfer & Generalization
-
-- **Cross-dataset evaluation** — training on UCF-Crime, testing on XD-Violence or custom surveillance streams.
-- **Pretraining strategies** — leveraging Kinetics, InternVid, and video-text contrastive learning before domain adaptation.
-- **Progressive fine-tuning** — stage-wise backbone unfreezing for stable transfer from pretrained weights to target domains.
-
-### Emerging Paradigms
-
-- **Multimodal fusion** — integrating audio cues (explosions, screams) with video for richer anomaly signatures.
-- **Explainable VAD** — using vision-language models to generate textual explanations for detected anomalies.
-- **Long-range temporal modeling** — moving beyond 16-frame clips to capture slowly unfolding anomalous events.
-
----
-
-## Datasets of Interest
-
-We benchmark primarily on the following standard VAD datasets:
-
-| Dataset | Setting | Key Characteristics |
-|---------|---------|---------------------|
-| **UCF-Crime** | Weakly-supervised | 1,900 real-world surveillance videos, 13 anomaly categories |
-| **XD-Violence** | Weakly-supervised | 4,754 videos with audio, multi-scene violence detection |
-| **ShanghaiTech** | Frame-level GT | 437 videos across 13 campus scenes |
-| **CUHK Avenue** | Frame-level GT | 37 videos, pedestrian-focused anomalies |
-| **UBnormal** | Synthetic GT | Virtually generated diverse anomalies for data augmentation |
-
----
-
-## Current Status
-
-- **Baseline established**: VideoMAE v2 + MIL attention with progressive three-stage fine-tuning.
-- **Next steps**: Integrate Video Swin Transformer, UniFormerV2, and Video Mamba backbones for head-to-head comparison.
-
----
-
-## Roadmap
-
-- [x] VideoMAE v2 + MIL baseline
-- [ ] Video Swin Transformer integration
-- [ ] UniFormerV2 backbone benchmark
-- [ ] Video Mamba for long-video anomaly detection
-- [ ] UMT-L / InternVid zero-shot evaluation
-- [ ] XD-Violence audio-visual fusion
-- [ ] Vision-language model explainable VAD
-
----
-
-## Acknowledgements
-
-This project draws inspiration from the broader VAD research community, including VideoMAE, RTFM, MGFN, VERA, and the Awesome Video Anomaly Detection survey repositories.
-
----
-
-## License
-
-MIT License.
-
----
-
-<div align="center">
-
-**⭐ Star this repo if you find the research direction interesting! ⭐**
-
-</div>
