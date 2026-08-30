@@ -151,6 +151,13 @@ def _parser() -> argparse.ArgumentParser:
     smoke.add_argument("-c", "--config", required=True)
     smoke.add_argument("--video", required=True)
     smoke.add_argument("--encoder")
+    smoke.add_argument("--device")
+    smoke.add_argument("--chunk-frames", type=int)
+    smoke.add_argument("--kv-size", type=int)
+    smoke.add_argument(
+        "--native-compression-mode",
+        choices=("off", "predict", "static_pseudo"),
+    )
     smoke.add_argument("--chunks", type=int, default=2)
     smoke.add_argument("--output")
     smoke.set_defaults(handler=_smoke)
@@ -505,6 +512,24 @@ def _smoke(args: argparse.Namespace) -> int:
     config = load_experiment(args.config)
     if args.encoder:
         config = {**config, "encoder": {**config["encoder"], "adapter": args.encoder}}
+    params = dict(config["encoder"].get("params", {}))
+    if args.device:
+        params["device"] = args.device
+    if args.kv_size is not None:
+        if args.kv_size <= 0:
+            raise ValueError("--kv-size 必须大于 0")
+        params["kv_size"] = args.kv_size
+    if args.native_compression_mode:
+        params["native_compression_mode"] = args.native_compression_mode
+    if params:
+        config = {**config, "encoder": {**config["encoder"], "params": params}}
+    if args.chunk_frames is not None:
+        if args.chunk_frames <= 0:
+            raise ValueError("--chunk-frames 必须大于 0")
+        config = {
+            **config,
+            "streaming": {**config.get("streaming", {}), "chunk_frames": args.chunk_frames},
+        }
     result = run_encoder_smoke(
         config,
         args.video,

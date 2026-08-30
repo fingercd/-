@@ -7,6 +7,8 @@ __pycache__/
 .mypy_cache/
 .coverage
 htmlcov/
+/.bootstrap-status
+/.incoming/
 
 # Local environments and editors
 .venv/
