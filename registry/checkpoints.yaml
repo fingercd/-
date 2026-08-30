@@ -1,0 +1,45 @@
+schema_version: 1
+
+checkpoints:
+  videomaev2-base-hf:
+    adapter: videomaev2
+    source: huggingface
+    repo_id: OpenGVLab/VideoMAEv2-Base
+    revision: 78c337a418cc4adaf7f1ff6c7ba343418393966b
+    license: cc-by-nc-4.0
+    allow_patterns:
+      - config.json
+      - preprocessor_config.json
+      - modeling_config.py
+      - modeling_videomaev2.py
+      - model.safetensors
+    sha256:
+      model.safetensors: ebffa1874066ea227330016e58a848e9e2bb1ff5605746459bded1122a42176d
+    notes: >-
+      固定 clip 基线。权重为 CC-BY-NC-4.0，不能仅依据本仓 MIT 许可证推断可商用。
+
+  hermes-llava-ov-0.5b:
+    adapter: hermes_llava_ov
+    source: huggingface
+    repo_id: llava-hf/llava-onevision-qwen2-0.5b-ov-hf
+    revision: 74dd0bf867a4cda7950c17663794267c60cf4b40
+    license: apache-2.0
+    allow_patterns:
+      - added_tokens.json
+      - chat_template.json
+      - config.json
+      - generation_config.json
+      - merges.txt
+      - model.safetensors
+      - preprocessor_config.json
+      - processor_config.json
+      - special_tokens_map.json
+      - tokenizer.json
+      - tokenizer_config.json
+      - video_preprocessor_config.json
+      - video_processor/preprocessor_config.json
+      - vocab.json
+    sha256:
+      model.safetensors: 07b3362c3412de79baf2379e44e5b0b2a8f4b965ebebd11d7b5b3eb4450fe96e
+    notes: >-
+      HERMES 的最小官方支持基座；HERMES 修改的是语言模型 decoder KV cache，视觉 tower 仍按帧块前向。

@@ -1,0 +1,38 @@
+schema_version: 1
+
+dataset:
+  name: ucf_crime
+  root: data/raw/ucf_crime
+  train_manifest: data/manifests/ucf_crime/train.jsonl
+  test_manifest: data/manifests/ucf_crime/test.jsonl
+
+sampler:
+  kind: chronological_stream
+  clip_frames: 16
+  frame_stride: 1
+
+encoder:
+  adapter: hermes_llava_ov
+  model: llava-hf/llava-onevision-qwen2-0.5b-ov-hf
+  checkpoint: hermes-llava-ov-0.5b
+  trainable: false
+  precision: bf16
+
+streaming:
+  enabled: true
+  chunk_frames: 16
+  sample_fps: 0.5
+  compression:
+    cache_kind: decoder_kv
+    policy: identity
+    replace: false
+    kv_budget_tokens: 2000
+
+task:
+  kind: temporal_supervised
+  supervision: segment
+
+output:
+  root: outputs
+  run_name: ucf-hermes-stream
+

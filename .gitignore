@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local environments and editors
+.venv/
+.idea/
+.vscode/
+
+# Large or machine-specific research assets
+/data/*
+/weights/*
+/outputs/*
+/external/*
+/logs/
+/wheels/
+/wandb/
+/mlruns/
+
+# Temporary research material
+/_tmp*/
+*.tmp
+
+# Keep directory contracts visible without committing payloads
+!/data/.gitkeep
+!/weights/.gitkeep
+!/outputs/.gitkeep
+!/external/.gitkeep

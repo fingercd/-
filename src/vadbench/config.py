@@ -1,0 +1,128 @@
+"""实验配置加载、覆盖和跨模块约束校验。"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from copy import deepcopy
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+
+class ConfigError(ValueError):
+    """配置结构或能力协商失败。"""
+
+
+def _merge(base: Mapping[str, Any], override: Mapping[str, Any]) -> dict[str, Any]:
+    result: dict[str, Any] = deepcopy(dict(base))
+    for key, value in override.items():
+        if isinstance(value, Mapping) and isinstance(result.get(key), Mapping):
+            result[key] = _merge(result[key], value)
+        else:
+            result[key] = deepcopy(value)
+    return result
+
+
+def load_yaml(path: str | Path) -> dict[str, Any]:
+    """以 UTF-8 读取 YAML，并要求顶层为 mapping。"""
+
+    config_path = Path(path)
+    with config_path.open("r", encoding="utf-8") as handle:
+        data = yaml.safe_load(handle) or {}
+    if not isinstance(data, Mapping):
+        raise ConfigError(f"配置顶层必须是对象：{config_path}")
+    return dict(data)
+
+
+def load_experiment(
+    path: str | Path,
+    *,
+    defaults: str | Path | None = None,
+) -> dict[str, Any]:
+    """读取实验配置，可选地以另一份 YAML 作为默认值。"""
+
+    data = load_yaml(path)
+    if defaults is not None:
+        data = _merge(load_yaml(defaults), data)
+    validate_experiment_shape(data)
+    return data
+
+
+def validate_experiment_shape(config: Mapping[str, Any]) -> None:
+    """做不依赖具体 encoder 的最小结构校验。"""
+
+    version = config.get("schema_version")
+    if version != 1:
+        raise ConfigError(f"仅支持 schema_version=1，实际为 {version!r}")
+    for section in ("dataset", "encoder", "task", "output"):
+        value = config.get(section)
+        if not isinstance(value, Mapping):
+            raise ConfigError(f"缺少对象配置段：{section}")
+
+    supervision = str(config["task"].get("supervision", ""))
+    if supervision not in {"video", "segment", "frame"}:
+        raise ConfigError("task.supervision 必须是 video、segment 或 frame")
+
+    streaming = config.get("streaming", {})
+    if not isinstance(streaming, Mapping):
+        raise ConfigError("streaming 必须是对象")
+    if streaming.get("enabled") and int(streaming.get("chunk_frames", 0)) <= 0:
+        raise ConfigError("启用 streaming 时 chunk_frames 必须大于 0")
+
+
+@dataclass(frozen=True)
+class CapabilityRequest:
+    """从实验配置提取、供 encoder capability 校验的需求。"""
+
+    streaming: bool
+    cache_kind: str | None
+    cache_replace: bool
+    trainable: bool
+    supervision: str
+
+    @classmethod
+    def from_config(cls, config: Mapping[str, Any]) -> CapabilityRequest:
+        streaming = config.get("streaming", {})
+        compression = streaming.get("compression", {}) if isinstance(streaming, Mapping) else {}
+        return cls(
+            streaming=bool(streaming.get("enabled", False)),
+            cache_kind=(
+                str(compression.get("cache_kind")) if compression.get("cache_kind") else None
+            ),
+            cache_replace=bool(compression.get("replace", False)),
+            trainable=bool(config["encoder"].get("trainable", False)),
+            supervision=str(config["task"].get("supervision")),
+        )
+
+
+def validate_capabilities(config: Mapping[str, Any], capabilities: Any) -> None:
+    """以 duck typing 校验配置需求，避免 config 层硬依赖某个 adapter 实现。"""
+
+    request = CapabilityRequest.from_config(config)
+    supports_streaming = bool(getattr(capabilities, "supports_streaming", False))
+    supports_grad = bool(getattr(capabilities, "supports_grad", False))
+    if request.streaming and not supports_streaming:
+        raise ConfigError("实验请求 streaming，但所选 encoder 不支持增量状态")
+    if request.trainable and not supports_grad:
+        raise ConfigError("实验请求端到端训练，但所选 encoder 不支持梯度")
+
+    if request.cache_kind:
+        cache_kinds = {
+            str(getattr(item, "value", item)) for item in getattr(capabilities, "cache_kinds", ())
+        }
+        if request.cache_kind not in cache_kinds:
+            raise ConfigError(
+                f"实验请求 cache_kind={request.cache_kind!r}，adapter 仅声明 {sorted(cache_kinds)}"
+            )
+    if request.cache_replace:
+        access = str(
+            getattr(
+                getattr(capabilities, "cache_access", "none"),
+                "value",
+                getattr(capabilities, "cache_access", "none"),
+            )
+        )
+        if access != "replace":
+            raise ConfigError(f"实验请求替换缓存，但 adapter cache_access={access!r}")
