@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "ready_for_gpu_smoke",
+  "status": "real_weight_smokes_passed",
   "date": "2026-08-31",
   "host": "ibnode3",
   "project_root": "/users/fotile/VAD",
@@ -32,5 +32,9 @@
     "target": "/users/fotile/datasets/UCF-Crime",
     "current_state": "empty landing directory; full UCF-Crime transfer not yet present"
   },
-  "remaining_gate": "Run HERMES on an unoccupied A100 and prove two-chunk decoder-KV reuse plus native HERMES compression telemetry."
+  "real_weight_smokes": {
+    "videomaev2": "passed on node3 CPU",
+    "hermes": "passed on node3 CPU with two chunks, cache reuse, and native static_pseudo compression"
+  },
+  "remaining_performance_followup": "Run HERMES predict mode on an unoccupied A100 for throughput and peak-memory benchmarking."
 }

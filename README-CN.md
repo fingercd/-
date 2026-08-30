@@ -23,7 +23,8 @@ VADBench 用同一套数据、时间轴和产物协议比较两条视频建模�
 | UCF 帧级评测 | ✅ | micro frame ROC-AUC/AP |
 | 本地 mock/合成测试 | ✅ | PyTorch 与无 PyTorch 路径均覆盖 |
 | VideoMAE V2 真权重冒烟 | ✅（本地与 node3 CPU） | [本地证据](docs/evidence/local-videomaev2-smoke-2026-08-31.json) · [服务器证据](docs/evidence/server-videomaev2-smoke-2026-08-31.json) |
-| HERMES 真权重冒烟 | 服务器验证中 | 必须证明官方原生压缩入口与两 chunk 状态复用 |
+| HERMES 真权重冒烟 | ✅（node3 CPU） | [证据](docs/evidence/server-hermes-smoke-2026-08-31.json)；A100 吞吐基准待空卡 |
+| train/evaluate 微型闭环 | ✅ | [证据](docs/evidence/pipeline-smoke-2026-08-31.json)；合成特征，不是 benchmark 分数 |
 | 真实 UCF 全量结果 | 尚未声称 | 仓库不含数据，必须使用官方视频与完整清单运行 |
 
 HERMES 公开工作面向 VideoQA，并没有证明在 UCF-Crime 上优于固定 clip encoder。这里把它作为“真实 decoder-KV 流式路径”的首个高风险研究基线，而不是现成的 VAD SOTA。
@@ -217,7 +218,7 @@ JSON 只存索引和元数据；大 tensor 放 NPZ/NPY。encoder fingerprint 覆
 
 服务器目标目录是 `/users/fotile/VAD`。node2 可用时应作为集群外网出口；node2 不可用时，可以在本地冻结代码/权重/轮子并上传到 node3，共享 `/users` 上只保留一份。
 
-当前 node3 离线环境、167 项测试、两套权重 SHA256、上游 commit 与数据软链状态见 [部署证据](docs/evidence/server-deployment-2026-08-31.json)。
+当前 node3 离线环境、167 项测试、两套权重 SHA256、上游 commit 与数据软链状态见 [部署证据](docs/evidence/server-deployment-2026-08-31.json)。两类真权重正确性冒烟均已通过；GPU 吞吐/峰值显存属于下一阶段性能基准。
 
 ```bash
 export VAD_PROJECT_ROOT=/users/fotile/VAD
