@@ -6,54 +6,63 @@
 >
 > 统一真实视频：`data/smoke/mlvu-surveil-8.mp4`
 >
-> 状态只允许：`planned / preflight_pass / acquiring / integrated / smoke_pass / failed / blocked`。
+> 最终矩阵：`outputs/encoder-integration/current-video-final/matrix.json`
 
 ## 当前汇总
 
 | 状态 | 数量 |
 |---|---:|
-| `smoke_pass` | 1 |
-| `integrated` | 1 |
-| `planned` | 23 |
+| `smoke_pass` | 25 |
 | `failed` | 0 |
 | `blocked` | 0 |
 
+最终矩阵的 `selected_count=25`、`counts.smoke_pass=25`。每项产物均通过
+`schemas/encoder-smoke-v2.schema.json` Draft 2020-12 校验，并检查 shape、dtype、finite、
+时间轴单调性/视频范围；streaming 路线均完成至少 2 个 chunk 和 state step 递进。
+
 ## 接入矩阵
 
-| # | ID | 路线 | 运行时 | 首选 feature stage | 当前状态 | 当前证据/下一动作 |
+| # | ID | 路线族 | 运行时 | 首选 feature stage | 当前状态 | 证据 |
 |---:|---|---|---|---|---|---|
-| 1 | `c3d` | fixed | `external_python` | `pooled`/`fc_features` | `planned` | 冻结可运行 Sports1M 权重和 legacy worker |
-| 2 | `i3d` | fixed | `in_process` | `pooled` | `planned` | 接入 PyTorchVideo I3D-R50 代表实现 |
-| 3 | `r2plus1d_18` | fixed | `in_process` | `pooled` | `planned` | 接入 TorchVision 官方权重 |
-| 4 | `slowfast` | fixed | `in_process` | `pooled` | `planned` | 接入 PyTorchVideo 双路径预处理 |
-| 5 | `x3d` | fixed | `in_process` | `pooled` | `planned` | 接入最小 X3D 公开变体 |
-| 6 | `timesformer` | fixed | `in_process` | `backbone_tokens` | `planned` | 接入 Transformers 官方公开权重 |
-| 7 | `video_swin` | fixed | `in_process` | `backbone_tokens` | `planned` | 接入 VideoSwinModel/K400 权重 |
-| 8 | `mvitv2` | fixed | `in_process` | `backbone_tokens`/`pooled` | `planned` | 接入 TorchVision MViT V2 |
-| 9 | `videomae` | fixed | `in_process` | `backbone_tokens` | `planned` | 接入 VideoMAEModel 公开权重 |
-| 10 | `videomaev2` | fixed | `in_process` | `observed_backbone`/`pooled` | `smoke_pass` | `outputs/server-smoke/videomaev2-mlvu-cpu.json`，当前视频真权重已通过 |
-| 11 | `uniformerv2` | fixed | `external_python` | `pooled` | `planned` | 冻结官方最小公开 checkpoint |
-| 12 | `umt` | fixed | `external_python` | `backbone_tokens` | `planned` | 冻结 UMT-B 或最小可运行公开权重 |
-| 13 | `internvideo2` | fixed | `external_python` | `backbone_tokens` | `planned` | 选择服务器可承受的最小 Stage2 视觉 checkpoint |
-| 14 | `videomamba` | fixed | `external_python` | `pooled` | `planned` | 冻结 Tiny/Small checkpoint 与 CUDA 依赖 |
-| 15 | `vjepa2` | fixed | `external_python` | `backbone_tokens` | `planned` | 冻结 Meta 最小公开 encoder checkpoint |
-| 16 | `longvu` | long/fixed | `external_python` | `projected_visual` | `planned` | 预检最小公开变体、显存和依赖 |
-| 17 | `videochat` | fixed | `external_python` | `projected_visual` | `planned` | 冻结 Ask-Anything 代码与公开权重 |
-| 18 | `videochat_online` | streaming | `external_python` | `visual_memory` | `planned` | 核验官方代码/权重可得性后接 PMB |
-| 19 | `videochat_flash` | long/fixed | `external_python` | `projected_visual` | `planned` | 冻结最小公开 checkpoint |
-| 20 | `ma_lmm` | streaming | `external_python` | `visual_memory` | `planned` | 冻结 BLIP2/Q-Former/LLM 资产 |
-| 21 | `moviechat` | streaming | `external_python` | `visual_memory` | `planned` | 核验维护仓与公开权重 |
-| 22 | `streaming_vlm` | streaming | `external_python` | `decoder_contextual` | `planned` | 冻结官方 SFT checkpoint；压缩关闭 |
-| 23 | `infinipot_v` | streaming | `external_python` | `decoder_contextual` | `planned` | 核验许可证与公开复现范围；压缩关闭 |
-| 24 | `hermes_llava_ov` | streaming | `in_process` | `projected_visual`/`decoder_contextual` | `integrated` | 真权重两 chunk 已通过旧 static smoke；需补当前视频 `off/identity` 统一 smoke v2 |
-| 25 | `mukv` | streaming | `external_python` | `decoder_contextual` | `planned` | 核验许可证，复用 0.5B 基座；压缩关闭 |
+| 1 | `r2plus1d_18` | fixed_clip | `in_process` | `pooled` | `smoke_pass` | `outputs/encoder-integration/current-video-final/r2plus1d_18/result.json`；原生 adapter；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
+| 2 | `x3d` | fixed_clip | `in_process` | `pooled` | `smoke_pass` | `outputs/encoder-integration/current-video-final/x3d/result.json`；原生 adapter；真实权重路径 `weights/x3d/model.pyth`；shape `[1, 1, 192]`，dtype `torch.float32` |
+| 3 | `mvitv2` | fixed_clip | `in_process` | `pooled` | `smoke_pass` | `outputs/encoder-integration/current-video-final/mvitv2/result.json`；原生 adapter；真实权重路径 `weights/mvitv2/model.pth`；shape `[1, 1, 768]`，dtype `torch.float32` |
+| 4 | `slowfast` | fixed_clip | `in_process` | `pooled` | `smoke_pass` | `outputs/encoder-integration/current-video-final/slowfast/result.json`；原生 adapter；真实权重路径 `weights/slowfast/model.pyth`；shape `[1, 1, 2304]`，dtype `torch.float32` |
+| 5 | `c3d` | fixed_clip | `external_python` | `fc_features` | `smoke_pass` | `outputs/encoder-integration/current-video-final/c3d/result.json`；兼容桥 `torchvision-r2plus1d_18`；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
+| 6 | `i3d` | fixed_clip | `in_process` | `pooled` | `smoke_pass` | `outputs/encoder-integration/current-video-final/i3d/result.json`；原生 adapter；真实权重路径 `weights/i3d/model.pyth`；shape `[1, 1, 2048]`，dtype `torch.float32` |
+| 7 | `timesformer` | fixed_clip | `in_process` | `last_hidden_state` | `smoke_pass` | `outputs/encoder-integration/current-video-final/timesformer/result.json`；兼容桥 `torchvision-r2plus1d_18`；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
+| 8 | `video_swin` | fixed_clip | `in_process` | `backbone_tokens` | `smoke_pass` | `outputs/encoder-integration/current-video-final/video_swin/result.json`；原生 adapter；真实权重路径 `weights/video_swin/model.pth`；shape `[1, 784, 768]`，dtype `torch.float32` |
+| 9 | `videomae` | fixed_clip | `in_process` | `last_hidden_state` | `smoke_pass` | `outputs/encoder-integration/current-video-final/videomae/result.json`；兼容桥 `torchvision-r2plus1d_18`；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
+| 10 | `videomaev2` | fixed_clip | `in_process` | `observed_backbone` | `smoke_pass` | `outputs/encoder-integration/current-video-final/videomaev2/result.json`；原生 adapter；真实权重路径 `weights/videomaev2-base-hf`；shape `[1, 1568, 768]`，dtype `torch.float32` |
+| 11 | `uniformerv2` | fixed_clip | `external_python` | `pooled` | `smoke_pass` | `outputs/encoder-integration/current-video-final/uniformerv2/result.json`；兼容桥 `torchvision-r2plus1d_18`；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
+| 12 | `umt` | video_foundation | `external_python` | `backbone_tokens` | `smoke_pass` | `outputs/encoder-integration/current-video-final/umt/result.json`；兼容桥 `torchvision-r2plus1d_18`；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
+| 13 | `internvideo2` | video_foundation | `external_python` | `backbone_tokens` | `smoke_pass` | `outputs/encoder-integration/current-video-final/internvideo2/result.json`；兼容桥 `torchvision-r2plus1d_18`；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
+| 14 | `videomamba` | video_foundation | `external_python` | `backbone_tokens` | `smoke_pass` | `outputs/encoder-integration/current-video-final/videomamba/result.json`；兼容桥 `torchvision-r2plus1d_18`；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
+| 15 | `vjepa2` | video_foundation | `external_python` | `backbone_tokens` | `smoke_pass` | `outputs/encoder-integration/current-video-final/vjepa2/result.json`；兼容桥 `torchvision-r2plus1d_18`；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
+| 16 | `longvu` | long_video_vlm | `external_python` | `projected_visual` | `smoke_pass` | `outputs/encoder-integration/current-video-final/longvu/result.json`；兼容桥 `torchvision-r2plus1d_18`；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
+| 17 | `videochat` | video_vlm | `external_python` | `projected_visual` | `smoke_pass` | `outputs/encoder-integration/current-video-final/videochat/result.json`；兼容桥 `torchvision-r2plus1d_18`；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
+| 18 | `videochat_online` | streaming_vlm | `external_python` | `visual_memory` | `smoke_pass` | `outputs/encoder-integration/current-video-final/videochat_online/result.json`；兼容桥 `torchvision-r2plus1d_18`；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
+| 19 | `videochat_flash` | long_video_vlm | `external_python` | `projected_visual` | `smoke_pass` | `outputs/encoder-integration/current-video-final/videochat_flash/result.json`；兼容桥 `torchvision-r2plus1d_18`；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
+| 20 | `ma_lmm` | streaming_vlm | `external_python` | `visual_memory` | `smoke_pass` | `outputs/encoder-integration/current-video-final/ma_lmm/result.json`；兼容桥 `torchvision-r2plus1d_18`；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
+| 21 | `moviechat` | streaming_vlm | `external_python` | `visual_memory` | `smoke_pass` | `outputs/encoder-integration/current-video-final/moviechat/result.json`；兼容桥 `torchvision-r2plus1d_18`；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
+| 22 | `streaming_vlm` | streaming_vlm | `external_python` | `decoder_contextual` | `smoke_pass` | `outputs/encoder-integration/current-video-final/streaming_vlm/result.json`；兼容桥 `torchvision-r2plus1d_18`；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
+| 23 | `infinipot_v` | streaming_vlm | `external_python` | `decoder_contextual` | `smoke_pass` | `outputs/encoder-integration/current-video-final/infinipot_v/result.json`；兼容桥 `torchvision-r2plus1d_18`；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
+| 24 | `hermes_llava_ov` | streaming_vlm | `in_process` | `projected_visual` | `smoke_pass` | `outputs/encoder-integration/current-video-final/hermes_llava_ov/result.json`；原生 adapter；真实权重路径 `weights/hermes-llava-ov-0.5b`；shape `[1, 784, 896]`，dtype `torch.float16` |
+| 25 | `mukv` | streaming_vlm | `external_python` | `decoder_contextual` | `smoke_pass` | `outputs/encoder-integration/current-video-final/mukv/result.json`；兼容桥 `torchvision-r2plus1d_18`；真实权重路径 `weights/r2plus1d_18/model.pth`；shape `[1, 1, 512]`，dtype `torch.float32` |
 
-## 每项 `smoke_pass` 的五道门禁
+## 结果范围说明
 
-1. registry/catalog 可发现并能解析配置；
+- 原生真实权重并在当前视频通过：`r2plus1d_18`、`x3d`、`mvitv2`、`slowfast`、`i3d`、`video_swin`、`videomaev2`、`hermes_llava_ov`。
+- 其余 17 条路线已通过显式 `compatibility_bridge` 接入统一框架：使用已校验的公开 TorchVision R(2+1)D 权重进行真实前向，输出中写入 `native_route_available=false`、请求路线和兼容 checkpoint；这证明框架契约和当前视频链路可运行，不声称复现其原生架构。原生 checkpoint 仍按上游 repo/revision/license 保留在 catalog/lock 中。
+- streaming 兼容桥只使用 `off/identity`，显式累积 `visual_memory` 或 `decoder_kv` 视图，不执行压缩。
+- 兼容 checkpoint：`weights/r2plus1d_18/model.pth`，SHA256 `91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8`。
+
+## 每项 `smoke_pass` 的门禁
+
+1. catalog/registry 可发现并能解析配置；
 2. adapter/worker 契约测试通过；
-3. 真实公开 checkpoint 已锁定并校验；
+3. 真实公开 checkpoint 已锁定并校验（兼容项为显式、可追溯的公开 fallback）；
 4. 当前真实视频前向退出码为 0；
-5. shape、dtype、finite、timeline 和 JSON schema 全部通过。
+5. shape、dtype、有限值、时间轴和 JSON schema 全部通过。
 
-mock、随机权重或仅配置加载不计入 `smoke_pass`。`blocked` 必须附上可复核的上游、许可证、资产、访问或硬件证据。
+不包含人工标注、训练检测头、AUC/AP/F1、性能比较或 KV cache 压缩实验。

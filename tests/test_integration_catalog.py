@@ -90,9 +90,12 @@ def test_catalog_contains_exactly_the_25_planned_targets() -> None:
     assert set(catalog.ids) == EXPECTED_IDS
     assert set(BUILTIN_ENCODER_CONFIGS) == EXPECTED_IDS
     assert set(ENCODER_REGISTRY.names()) == EXPECTED_IDS
-    assert {record.id for record in catalog.integrations if record.status == "integrated"} == (
-        EXPECTED_INTEGRATED_IDS
-    )
+    assert {
+        record.id
+        for record in catalog.integrations
+        if record.status in {"integrated", "smoke_pass"}
+    } == EXPECTED_INTEGRATED_IDS
+    assert all(record.status == "smoke_pass" for record in catalog.integrations)
     assert sum(record.status == "planned" for record in catalog.integrations) == 0
     assert all(
         record.checkpoint.status == "verified"
@@ -234,11 +237,11 @@ def test_existing_integrations_keep_targets_capabilities_and_references() -> Non
     assert hermes_spec.metadata["cache_owner"] == "language_model_decoder"
 
 
-def test_integrated_targets_load_from_definition_and_keep_fail_closed_paths() -> None:
+def test_smoke_pass_targets_load_from_definition_and_keep_fail_closed_paths() -> None:
     integrated = [
         record
         for record in DEFAULT_INTEGRATION_CATALOG.integrations
-        if record.status == "integrated"
+        if record.status in {"integrated", "smoke_pass"}
     ]
     assert len(integrated) == 25
     for record in integrated:

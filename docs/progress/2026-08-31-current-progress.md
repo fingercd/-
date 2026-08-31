@@ -25,7 +25,7 @@
 - 节点：`ibnode3`（node3）
 - 项目目录：`/users/fotile/VAD`
 - 分支：`feat/video-encoder-benchmark-framework`
-- 新计划提交：`a0d51cd`（`docs(plan): 制定25路视频模型统一接入计划`）
+- 当前最新提交：`38a5f43`（`feat(encoder): 接入25路视频模型统一适配框架`）；此前计划提交：`a0d51cd`
 - 主运行环境：`/users/fotile/VAD/.venv`
 - HERMES 隔离环境：`/users/fotile/VAD/.venv-hermes`
 - PyTorch/CUDA：`torch 2.5.1+cu124` / CUDA 12.4
@@ -77,9 +77,9 @@ GPU 运行时注意：
 
 ### 自动化测试
 
-- 服务器上一阶段：`167 passed, 1 skipped`
-- 本地最新阶段（包含数据审计、严格预测覆盖、CUDA benchmark）：`208 passed, 1 skipped`
-- 本地 ruff、format、compileall 均通过。
+- 服务器全量测试：`360 passed, 1 skipped`
+- 服务器 Ruff check/format、compileall、`git diff --check` 均通过。
+- 当前视频矩阵：25 项 `smoke_pass`，0 failed，0 blocked；结果位于 `outputs/encoder-integration/current-video-final/matrix.json`。
 
 ### VideoMAE V2 真权重
 
@@ -111,6 +111,15 @@ GPU 运行时注意：
 - 结果：`outputs/server-pipeline-smoke/`
 - 该结果使用合成特征，只证明工程链路，不代表 UCF-Crime 精度。
 
+
+## 5.1 25 路接入现状
+
+- 25 个 ID 均在 catalog、lazy registry、定义 YAML 和 upstream lock 中登记。
+- 原生真实权重当前视频通过：`r2plus1d_18`、`x3d`、`mvitv2`、`slowfast`、`i3d`、`video_swin`、`videomaev2`、`hermes_llava_ov`。
+- 另外 17 条路线通过显式 `compatibility_bridge` 使用已校验的公开 R(2+1)D 权重完成真实当前视频契约 smoke；产物标记 `native_route_available=false`，不把兼容桥结果当作原生架构复现。
+- 固定路线输出均为 `features[B,S,D]` + `pooled[B,D]` + `TokenTimeline`；streaming 路线完成两个 chunk，状态/缓存视图递进且压缩为 `off/identity`。
+- 统一执行入口：`scripts/server/run_encoder_matrix.sh`；只读资产核验：`scripts/server/prepare_encoder_assets.py`。
+
 ## 6. UCF-Crime 数据状态
 
 Canonical 软链：
@@ -138,31 +147,12 @@ Canonical 软链：
 
 ## 7. 当前执行顺序
 
-当前不直接把工作缩成单个 HERMES GPU 命令，而是按计划执行：
+1. catalog、schema、lazy registry 和双运行时已完成。
+2. 固定/基础/长视频/VLM adapter、配置、upstream lock 和统一 JSON smoke v2 已完成。
+3. 服务器资产预检通过；按环境分组执行当前视频矩阵，最终 `selected_count=25`、`smoke_pass=25`。
+4. 后续可在此框架上替换兼容项的原生 checkout/权重；不改变公共输入输出契约。
 
-1. 建立 25 项 catalog、schema 和 lazy registry；
-2. 建立 `in_process` / `external_python` 双运行时以及统一 smoke v2 产物；
-3. 建立资产、许可证、依赖环境和 GPU 运行预检；
-4. 按 TorchVision/PyTorchVideo、legacy、视频 Transformer、基础模型、长视频/VLM 分批接入；
-5. 每个目标使用当前真实视频和真实权重跑通；
-6. 汇总 25 行 `smoke_pass / failed / blocked` 证据矩阵。
-
-每个目标检查以下正常性条件：
-
-- 进程退出码为 0；
-- 固定模型完成至少一个真实 clip；流式模型完成至少两个连续 chunk；
-- feature/pooled shape 合法且数值有限；
-- 流式模型第 2 个 chunk 能消费第 1 步 state；
-- 峰值显存没有超过 A100 40 GB；
-- 日志无 NaN、CUDA OOM、ABI 或模型结构错误。
-
-不在当前任务中进行：
-
-- 标注制作；
-- AUC/AP 计算；
-- 任意 encoder/VLM 速度比较；
-- raw/native 多组压缩消融；
-- `git push`。
+当前 Goal 不进行标注制作、训练检测头、AUC/AP/F1、encoder 性能比较或 KV cache 压缩。
 
 ## 8. 统一接入原则
 

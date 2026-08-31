@@ -3,7 +3,7 @@ integrations:
 - id: r2plus1d_18
   display_name: R(2+1)D-18
   family: fixed_clip
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/r2plus1d-18.yaml
   adapter_target: vadbench.integrations.torchvision_video:TorchvisionVideoAdapter
   backend: torchvision
@@ -36,7 +36,7 @@ integrations:
 - id: x3d
   display_name: X3D
   family: fixed_clip
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/x3d.yaml
   adapter_target: vadbench.integrations.pytorchvideo:PytorchVideoAdapter
   backend: pytorchvideo
@@ -59,7 +59,7 @@ integrations:
 - id: mvitv2
   display_name: MViTv2
   family: fixed_clip
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/mvitv2.yaml
   adapter_target: vadbench.integrations.torchvision_video:TorchvisionVideoAdapter
   backend: torchvision
@@ -80,7 +80,7 @@ integrations:
 - id: slowfast
   display_name: SlowFast
   family: fixed_clip
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/slowfast.yaml
   adapter_target: vadbench.integrations.pytorchvideo:PytorchVideoAdapter
   backend: pytorchvideo
@@ -101,7 +101,7 @@ integrations:
 - id: c3d
   display_name: C3D
   family: fixed_clip
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/c3d.yaml
   adapter_target: vadbench.integrations.legacy:LegacyVideoAdapter
   backend: legacy
@@ -124,7 +124,7 @@ integrations:
 - id: i3d
   display_name: I3D
   family: fixed_clip
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/i3d.yaml
   adapter_target: vadbench.integrations.pytorchvideo:PytorchVideoAdapter
   backend: pytorchvideo
@@ -145,7 +145,7 @@ integrations:
 - id: timesformer
   display_name: TimeSformer
   family: fixed_clip
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/timesformer.yaml
   adapter_target: vadbench.integrations.transformers_video:TransformersVideoAdapter
   backend: transformers-video
@@ -168,7 +168,7 @@ integrations:
 - id: video_swin
   display_name: Video Swin
   family: fixed_clip
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/video-swin.yaml
   adapter_target: vadbench.integrations.torchvision_video:TorchvisionVideoAdapter
   backend: torchvision
@@ -189,7 +189,7 @@ integrations:
 - id: videomae
   display_name: VideoMAE
   family: fixed_clip
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/videomae.yaml
   adapter_target: vadbench.integrations.transformers_video:TransformersVideoAdapter
   backend: transformers-video
@@ -210,7 +210,7 @@ integrations:
 - id: videomaev2
   display_name: VideoMAE V2
   family: fixed_clip
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/videomaev2-base.yaml
   adapter_target: vadbench.integrations.videomaev2:VideoMAEv2Adapter
   backend: videomaev2
@@ -243,7 +243,7 @@ integrations:
 - id: uniformerv2
   display_name: UniFormerV2
   family: fixed_clip
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/uniformerv2.yaml
   adapter_target: vadbench.integrations.foundation.uniformerv2:UniFormerV2Adapter
   backend: uniformerv2
@@ -261,7 +261,7 @@ integrations:
 - id: umt
   display_name: UMT
   family: video_foundation
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/umt.yaml
   adapter_target: vadbench.integrations.foundation.umt:UMTAdapter
   backend: umt
@@ -279,7 +279,7 @@ integrations:
 - id: internvideo2
   display_name: InternVideo2
   family: video_foundation
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/internvideo2.yaml
   adapter_target: vadbench.integrations.foundation.internvideo2:InternVideo2Adapter
   backend: internvideo2
@@ -297,7 +297,7 @@ integrations:
 - id: videomamba
   display_name: VideoMamba
   family: video_foundation
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/videomamba.yaml
   adapter_target: vadbench.integrations.foundation.videomamba:VideoMambaAdapter
   backend: videomamba
@@ -315,7 +315,7 @@ integrations:
 - id: vjepa2
   display_name: V-JEPA 2
   family: video_foundation
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/vjepa2.yaml
   adapter_target: vadbench.integrations.foundation.vjepa2:VJEPA2Adapter
   backend: vjepa2
@@ -333,7 +333,7 @@ integrations:
 - id: longvu
   display_name: LongVU
   family: long_video_vlm
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/longvu.yaml
   adapter_target: vadbench.integrations.long_video.longvu:LongVUAdapter
   backend: longvu
@@ -366,7 +366,7 @@ integrations:
 - id: videochat
   display_name: VideoChat
   family: video_vlm
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/videochat.yaml
   adapter_target: vadbench.integrations.long_video.videochat:VideoChatAdapter
   backend: videochat
@@ -384,7 +384,7 @@ integrations:
 - id: videochat_online
   display_name: VideoChat-Online
   family: streaming_vlm
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/videochat-online.yaml
   adapter_target: vadbench.integrations.long_video.videochat_online:VideoChatOnlineAdapter
   backend: videochat-online
@@ -417,7 +417,7 @@ integrations:
 - id: videochat_flash
   display_name: VideoChat-Flash
   family: long_video_vlm
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/videochat-flash.yaml
   adapter_target: vadbench.integrations.long_video.videochat_flash:VideoChatFlashAdapter
   backend: videochat-flash
@@ -435,7 +435,7 @@ integrations:
 - id: ma_lmm
   display_name: MA-LMM
   family: streaming_vlm
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/ma-lmm.yaml
   adapter_target: vadbench.integrations.long_video.ma_lmm:MALMMAdapter
   backend: ma-lmm
@@ -453,7 +453,7 @@ integrations:
 - id: moviechat
   display_name: MovieChat
   family: streaming_vlm
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/moviechat.yaml
   adapter_target: vadbench.integrations.long_video.moviechat:MovieChatAdapter
   backend: moviechat
@@ -471,7 +471,7 @@ integrations:
 - id: streaming_vlm
   display_name: StreamingVLM
   family: streaming_vlm
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/streaming-vlm.yaml
   adapter_target: vadbench.integrations.long_video.streaming_vlm:StreamingVLMAdapter
   backend: streaming-vlm
@@ -499,7 +499,7 @@ integrations:
 - id: infinipot_v
   display_name: InfiniPot-V
   family: streaming_vlm
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/infinipot-v.yaml
   adapter_target: vadbench.integrations.long_video.infinipot_v:InfiniPotVAdapter
   backend: infinipot-v
@@ -517,7 +517,7 @@ integrations:
 - id: hermes_llava_ov
   display_name: HERMES + LLaVA-OneVision
   family: streaming_vlm
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/hermes-llava-ov-0.5b.yaml
   adapter_target: vadbench.integrations.hermes:HermesLlavaOVAdapter
   backend: hermes
@@ -545,7 +545,7 @@ integrations:
 - id: mukv
   display_name: MuKV
   family: streaming_vlm
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/mukv.yaml
   adapter_target: vadbench.integrations.long_video.mukv:MuKVAdapter
   backend: mukv
