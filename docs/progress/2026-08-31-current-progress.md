@@ -25,7 +25,7 @@
 - 节点：`ibnode3`（node3）
 - 项目目录：`/users/fotile/VAD`
 - 分支：`feat/video-encoder-benchmark-framework`
-- 当前最新提交：`38a5f43`（`feat(encoder): 接入25路视频模型统一适配框架`）；此前计划提交：`a0d51cd`
+- 当前最新代码提交：`38a5f43`（`feat(encoder): 接入25路视频模型统一适配框架`）；冒烟/进度提交：`ce32013`
 - 主运行环境：`/users/fotile/VAD/.venv`
 - HERMES 隔离环境：`/users/fotile/VAD/.venv-hermes`
 - PyTorch/CUDA：`torch 2.5.1+cu124` / CUDA 12.4
@@ -79,7 +79,7 @@ GPU 运行时注意：
 
 - 服务器全量测试：`360 passed, 1 skipped`
 - 服务器 Ruff check/format、compileall、`git diff --check` 均通过。
-- 当前视频矩阵：25 项 `smoke_pass`，0 failed，0 blocked；结果位于 `outputs/encoder-integration/current-video-final/matrix.json`。
+- 当前视频矩阵：25 项 `smoke_pass`，0 failed，0 blocked；结果位于 `outputs/encoder-integration/current-video-final/matrix-ce32013.json`。
 
 ### VideoMAE V2 真权重
 
@@ -95,13 +95,13 @@ GPU 运行时注意：
 
 已在 node3 CPU 上连续处理 2 个 chunk：
 
-- 每 chunk 输出：`[1, 392, 896]`，FP16
+- 统一 smoke v2 每 chunk 输出：`[1, 784, 896]`，FP16
 - 第 2 步：`cache_hit=true`
 - 复用 KV token：77
 - 每层 raw KV：405 / 469
 - 压缩后：77（13 个 protected prompt + 64 token budget）
 - 原生 `static_pseudo` 两次均 `called=true, applied=true`
-- 结果文件：`outputs/server-smoke/hermes-cpu-static.json`
+- 旧压缩验证结果：`outputs/server-smoke/hermes-cpu-static.json`；统一当前视频结果：`outputs/encoder-integration/current-video-final/hermes_llava_ov/result.json`
 
 这证明真实 decoder-KV 状态可跨 chunk 复用并可被压缩。CPU 很慢，但正确性链路成立。
 

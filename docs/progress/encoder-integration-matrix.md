@@ -6,7 +6,7 @@
 >
 > 统一真实视频：`data/smoke/mlvu-surveil-8.mp4`
 >
-> 最终矩阵：`outputs/encoder-integration/current-video-final/matrix.json`
+> 最终矩阵：`outputs/encoder-integration/current-video-final/matrix-ce32013.json`
 
 ## 当前汇总
 
