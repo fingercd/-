@@ -11,6 +11,9 @@ constructor:
   streaming: true
   device: cuda
   initialize_prompt: true
+  # 默认 projected_visual 与既有特征兼容，但只适合性能对照；准确率消融需显式
+  # 改为 decoder_contextual，使当前 chunk 表征受历史 decoder KV/压缩策略影响。
+  feature_stage: projected_visual
   # 真实 HERMES 冒烟启用官方 query-guided hierarchical decoder-KV policy。
   # 设为 off 才是 raw/identity 对照；static_pseudo 使用下方固定中性问题。
   native_compression_mode: predict
@@ -39,7 +42,9 @@ capabilities:
 cache_semantics:
   kind: decoder_kv
   owner: language_model_decoder
-  visual_tokens_output: projected_and_pooled_before_decoder
+  visual_tokens_output: projected_visual
+  projected_visual_scope: performance_only; representation is independent of past decoder KV
+  decoder_contextual_scope: accuracy_and_performance; current q_len only and conditioned on past decoder KV
   native_budget_semantics: kv_size counts selected visual tokens per layer; protected prompt tokens are additional
   native_risk: query-guided VideoQA compression adds pseudo-query compute and may not preserve rare VAD evidence
 

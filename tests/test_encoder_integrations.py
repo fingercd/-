@@ -76,8 +76,76 @@ class _FakeVideoMAEEncoder:
         return pooled
 
 
+class _FakeLanguageModelOutput:
+    def __init__(
+        self,
+        *,
+        past_key_values: Any,
+        hidden_states: tuple[np.ndarray, ...] | None,
+    ) -> None:
+        self.past_key_values = past_key_values
+        self.hidden_states = hidden_states
+
+
+class _FakeLanguageModel:
+    def __init__(self, owner: _FakeHermesModel) -> None:
+        self.owner = owner
+
+    def __call__(self, *args: Any, **kwargs: Any) -> _FakeLanguageModelOutput:
+        return self.forward(*args, **kwargs)
+
+    def forward(
+        self,
+        *args: Any,
+        inputs_embeds: np.ndarray,
+        past_key_values: Any,
+        output_hidden_states: bool = False,
+        **kwargs: Any,
+    ) -> _FakeLanguageModelOutput:
+        del args, kwargs
+        token_count = inputs_embeds.shape[1]
+        past_length = 0 if not past_key_values else past_key_values[0][0].shape[2]
+        if past_key_values is None:
+            past_key_values = []
+            for _ in range(self.owner.num_layers):
+                empty = np.zeros((1, 2, 0, 3), dtype=np.float32)
+                past_key_values.append((empty, empty.copy()))
+        updated = []
+        for layer_index, (key, value) in enumerate(past_key_values):
+            key_delta = np.full((1, 2, token_count, 3), layer_index + 1, dtype=np.float32)
+            value_delta = np.full((1, 2, token_count, 3), layer_index + 11, dtype=np.float32)
+            updated.append(
+                (
+                    np.concatenate((key, key_delta), axis=2),
+                    np.concatenate((value, value_delta), axis=2),
+                )
+            )
+
+        hidden_states = None
+        if output_hidden_states and self.owner.expose_decoder_hidden:
+            # Include synthetic past positions; the adapter must expose only
+            # the current visual q_len, never these sentinel past values.
+            past_hidden = np.full(
+                (1, past_length, inputs_embeds.shape[-1]),
+                -999.0,
+                dtype=np.float32,
+            )
+            current_hidden = np.asarray(inputs_embeds) + float(past_length)
+            hidden_states = (np.concatenate((past_hidden, current_hidden), axis=1),)
+        return _FakeLanguageModelOutput(
+            past_key_values=updated,
+            hidden_states=hidden_states,
+        )
+
+
 class _FakeHermesModel:
-    def __init__(self, *, layers: int = 2, native_summary: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        layers: int = 2,
+        native_summary: bool = False,
+        expose_decoder_hidden: bool = True,
+    ) -> None:
         self.num_layers = layers
         self.kv_cache: Any = None
         self._position_ids_cache = [None for _ in range(layers)]
@@ -91,6 +159,8 @@ class _FakeHermesModel:
         self.native_pseudo_calls = 0
         self.last_pseudo_questions: tuple[str, str] | None = None
         self.native_summary = native_summary
+        self.expose_decoder_hidden = expose_decoder_hidden
+        self.language_model = _FakeLanguageModel(self)
 
     def encode_init_prompt(self) -> None:
         self.kv_cache = [
@@ -111,27 +181,23 @@ class _FakeHermesModel:
         features = self.get_video_features(video_chunk)
         token_count = features.shape[1]
         if self.kv_cache is None:
-            self.kv_cache = []
-            for _ in range(self.num_layers):
-                empty = np.zeros((1, 2, 0, 3), dtype=np.float32)
-                self.kv_cache.append((empty, empty.copy()))
-        updated = []
+            self._position_ids_cache = [
+                np.asarray([], dtype=np.int64) for _ in range(self.num_layers)
+            ]
+        output = self.language_model(
+            inputs_embeds=features,
+            past_key_values=self.kv_cache,
+            use_cache=True,
+            return_dict=True,
+        )
         updated_positions = []
-        for layer_index, (key, value) in enumerate(self.kv_cache):
-            key_delta = np.full((1, 2, token_count, 3), layer_index + 1, dtype=np.float32)
-            value_delta = np.full((1, 2, token_count, 3), layer_index + 11, dtype=np.float32)
-            updated.append(
-                (
-                    np.concatenate((key, key_delta), axis=2),
-                    np.concatenate((value, value_delta), axis=2),
-                )
-            )
+        for layer_index in range(self.num_layers):
             current_positions = self._position_ids_cache[layer_index]
             start = int(current_positions[-1]) + 1 if len(current_positions) else 0
             updated_positions.append(
                 np.concatenate((current_positions, np.arange(start, start + token_count)))
             )
-        self.kv_cache = updated
+        self.kv_cache = output.past_key_values
         self.last_encoded_frames = int(video_chunk.shape[0])
         self.total_processed_frames += self.last_encoded_frames
         self._position_ids_cache = updated_positions
@@ -262,7 +328,9 @@ def test_hermes_stream_step_captures_visual_tokens_and_decoder_kv() -> None:
     assert step.output is not None
     assert step.output.features.shape == (1, 8, 3)
     np.testing.assert_allclose(step.output.pooled, step.output.features.mean(axis=1))
-    assert step.output.aux["feature_stage"] == "projected_and_pooled_before_decoder"
+    assert step.output.aux["feature_stage"] == "projected_visual"
+    assert step.output.aux["cache_conditioned"] is False
+    assert step.output.aux["comparison_scope"] == "performance_only"
     assert step.output.aux["cache_owner"] == "language_model_decoder"
     assert step.state.step_index == 1
     assert all(view.sequence_length == 10 for view in step.state.caches.values())
@@ -278,6 +346,79 @@ def test_hermes_stream_step_captures_visual_tokens_and_decoder_kv() -> None:
     assert step.telemetry["decoder_kv_replaced_by_policy"] is False
     assert step.telemetry["is_vision_encoder_kv"] is False
     assert not adapter.capabilities.supports_token_cache
+
+
+def test_hermes_feature_stages_expose_distinct_and_explicit_semantics() -> None:
+    clip = make_clip(frames=2)
+    projected_adapter = HermesLlavaOVAdapter(model=_FakeHermesModel())
+    projected = projected_adapter.encode_step(clip, projected_adapter.init_state("video")).output
+    assert projected is not None
+
+    contextual_adapter = HermesLlavaOVAdapter(
+        model=_FakeHermesModel(),
+        feature_stage="decoder_contextual",
+    )
+    contextual = contextual_adapter.encode_step(clip, contextual_adapter.init_state("video")).output
+    assert contextual is not None
+
+    assert projected.features.shape == contextual.features.shape == (1, 4, 3)
+    np.testing.assert_allclose(contextual.features, projected.features + 2.0)
+    np.testing.assert_allclose(contextual.timeline.start_s, projected.timeline.start_s)
+    np.testing.assert_allclose(contextual.timeline.end_s, projected.timeline.end_s)
+    assert np.all(np.asarray(contextual.features) != -999.0)
+    assert projected.aux["feature_stage"] == "projected_visual"
+    assert projected.aux["comparison_scope"] == "performance_only"
+    assert projected.aux["cache_conditioned"] is False
+    assert contextual.aux["feature_stage"] == "decoder_contextual"
+    assert contextual.aux["comparison_scope"] == "accuracy_and_performance"
+    assert contextual.aux["cache_conditioned"] is True
+    assert contextual.aux["decoder_context_scope"] == "current_q_len_only"
+
+
+def test_hermes_decoder_contextual_fails_when_upstream_hidden_state_is_missing() -> None:
+    model = _FakeHermesModel(expose_decoder_hidden=False)
+    adapter = HermesLlavaOVAdapter(model=model, feature_stage="decoder_contextual")
+
+    with pytest.raises(RuntimeError, match="未返回 last_hidden_state/hidden_states"):
+        adapter.encode_step(make_clip(frames=2), adapter.init_state("video"))
+    assert callable(model.language_model.forward)
+
+
+def test_hermes_decoder_contextual_features_reflect_compressed_past_cache() -> None:
+    identity_adapter = HermesLlavaOVAdapter(
+        model=_FakeHermesModel(),
+        kv_size=5,
+        feature_stage="decoder_contextual",
+    )
+    identity_first = identity_adapter.encode_step(
+        make_clip(frames=4), identity_adapter.init_state("video")
+    )
+    identity_second = identity_adapter.encode_step(
+        make_clip(frames=1, start_s=2.0), identity_first.state
+    )
+
+    native_adapter = HermesLlavaOVAdapter(
+        model=_FakeHermesModel(),
+        kv_size=5,
+        feature_stage="decoder_contextual",
+        native_compression_mode="predict",
+    )
+    native_first = native_adapter.encode_step(
+        make_clip(frames=4), native_adapter.init_state("video")
+    )
+    native_second = native_adapter.encode_step(make_clip(frames=1, start_s=2.0), native_first.state)
+
+    assert identity_second.output is not None and native_second.output is not None
+    assert max(view.sequence_length for view in identity_first.state.caches.values()) == 10
+    assert max(view.sequence_length for view in native_first.state.caches.values()) == 7
+    # The fake decoder adds past cache length to current hidden states.  A
+    # three-token cache difference must therefore affect accuracy features.
+    np.testing.assert_allclose(
+        identity_second.output.features,
+        native_second.output.features + 3.0,
+    )
+    assert identity_second.output.aux["cache_conditioned"] is True
+    assert native_second.output.aux["cache_conditioned"] is True
 
 
 def test_hermes_external_policy_replaces_decoder_cache_and_reports_telemetry() -> None:

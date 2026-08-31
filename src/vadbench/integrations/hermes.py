@@ -60,6 +60,7 @@ _INTERNAL_STATE_FIELDS = (
     "conv_history",
 )
 _NATIVE_COMPRESSION_MODES = frozenset({"off", "predict", "static_pseudo"})
+_FEATURE_STAGES = frozenset({"projected_visual", "decoder_contextual"})
 
 
 def _shape(value: Any) -> tuple[int, ...]:
@@ -238,6 +239,35 @@ def _mean_tokens(features: Any) -> Any:
     return np.asarray(features).mean(axis=1)
 
 
+def _ensure_single_batch_bsd(value: Any, label: str) -> Any:
+    shape = _shape(value)
+    if len(shape) == 2:
+        if hasattr(value, "unsqueeze"):
+            value = value.unsqueeze(0)
+        else:
+            value = np.expand_dims(np.asarray(value), axis=0)
+        shape = _shape(value)
+    if len(shape) != 3 or shape[0] != 1 or min(shape) <= 0:
+        raise RuntimeError(f"{label} 必须是非空 [1,S,D]，实际为 {shape}")
+    return value
+
+
+def _decoder_hidden_from_output(output: Any) -> Any | None:
+    hidden = getattr(output, "last_hidden_state", None)
+    if hidden is None and isinstance(output, Mapping):
+        hidden = output.get("last_hidden_state")
+    if hidden is not None:
+        return hidden
+    hidden_states = getattr(output, "hidden_states", None)
+    if hidden_states is None and isinstance(output, Mapping):
+        hidden_states = output.get("hidden_states")
+    if hidden_states is None:
+        return None
+    if isinstance(hidden_states, (tuple, list)):
+        return hidden_states[-1] if hidden_states else None
+    return hidden_states
+
+
 def _as_model_chunk(frames: Any) -> Any:
     """Use a torch tensor for real upstream code, while keeping fake tests light."""
 
@@ -276,6 +306,22 @@ def _normalize_native_compression_mode(value: str | bool | None) -> str:
     return normalized
 
 
+def _normalize_feature_stage(value: str) -> str:
+    normalized = str(value).strip().lower().replace("-", "_")
+    aliases = {
+        "projected": "projected_visual",
+        "visual": "projected_visual",
+        "decoder": "decoder_contextual",
+        "contextual": "decoder_contextual",
+    }
+    normalized = aliases.get(normalized, normalized)
+    if normalized not in _FEATURE_STAGES:
+        raise ValueError(
+            f"feature_stage 必须是 projected_visual 或 decoder_contextual，实际为 {value!r}"
+        )
+    return normalized
+
+
 class HermesLlavaOVAdapter(StreamingVideoEncoderAdapter):
     """Expose HERMES projected tokens and replaceable decoder KV state."""
 
@@ -291,6 +337,7 @@ class HermesLlavaOVAdapter(StreamingVideoEncoderAdapter):
         streaming: bool = True,
         device: str = "cuda",
         initialize_prompt: bool = True,
+        feature_stage: str = "projected_visual",
         native_compression_mode: str | bool | None = "off",
         native_local_question: str = (
             "Describe recent visible actions, objects, people, and scene changes in concrete terms."
@@ -306,6 +353,7 @@ class HermesLlavaOVAdapter(StreamingVideoEncoderAdapter):
             raise ValueError("sample_fps 必须大于 0")
         if kv_size is not None and (type(kv_size) is not int or kv_size <= 0):
             raise ValueError("kv_size 必须是正整数或 None")
+        normalized_feature_stage = _normalize_feature_stage(feature_stage)
         native_mode = _normalize_native_compression_mode(native_compression_mode)
         if native_mode != "off" and kv_size is None:
             raise ValueError("启用 HERMES 原生压缩时 kv_size 不能为空")
@@ -328,6 +376,12 @@ class HermesLlavaOVAdapter(StreamingVideoEncoderAdapter):
             raise TypeError("HERMES model 必须实现 encode_video_chunk")
         if not callable(getattr(model, "get_video_features", None)):
             raise TypeError("HERMES model 必须实现 get_video_features 以捕获投影后视觉 token")
+        if normalized_feature_stage == "decoder_contextual":
+            language_model = getattr(model, "language_model", None)
+            if language_model is None or not callable(getattr(language_model, "forward", None)):
+                raise TypeError(
+                    "feature_stage=decoder_contextual 需要 callable model.language_model.forward"
+                )
         if native_mode != "off" and not callable(
             getattr(model, "apply_kv_cache_pruning_strict", None)
         ):
@@ -347,6 +401,7 @@ class HermesLlavaOVAdapter(StreamingVideoEncoderAdapter):
         self.kv_size = kv_size
         self.sample_fps = float(sample_fps)
         self.initialize_prompt = bool(initialize_prompt)
+        self.feature_stage = normalized_feature_stage
         self.native_compression_mode = native_mode
         self.native_local_question = native_local_question
         self.native_global_question = native_global_question
@@ -548,37 +603,82 @@ class HermesLlavaOVAdapter(StreamingVideoEncoderAdapter):
                 },
             )
 
-    def _capture_projected_tokens(self, model_chunk: Any) -> Any:
-        captured: list[Any] = []
-        original = self.model.get_video_features
+    def _capture_chunk_features(self, model_chunk: Any) -> tuple[Any, Any | None]:
+        projected_outputs: list[Any] = []
+        contextual_outputs: list[Any] = []
+        original_get_video_features = self.model.get_video_features
+        language_model = getattr(self.model, "language_model", None)
+        original_language_forward = (
+            getattr(language_model, "forward", None)
+            if self.feature_stage == "decoder_contextual"
+            else None
+        )
 
         def recording_get_video_features(*args: Any, **kwargs: Any) -> Any:
-            features = original(*args, **kwargs)
-            captured.append(features)
+            features = original_get_video_features(*args, **kwargs)
+            projected_outputs.append(features)
             return features
 
+        def recording_language_forward(*args: Any, **kwargs: Any) -> Any:
+            inputs_embeds = kwargs.get("inputs_embeds")
+            if inputs_embeds is None or len(_shape(inputs_embeds)) != 3:
+                raise RuntimeError(
+                    "HERMES current-chunk decoder forward 缺少 [B,q_len,D] inputs_embeds"
+                )
+            q_len = _shape(inputs_embeds)[1]
+            forwarded = dict(kwargs)
+            forwarded["output_hidden_states"] = True
+            assert callable(original_language_forward)
+            output = original_language_forward(*args, **forwarded)
+            hidden = _decoder_hidden_from_output(output)
+            if hidden is None:
+                raise RuntimeError(
+                    "feature_stage=decoder_contextual，但 language_model 当前 chunk forward "
+                    "未返回 last_hidden_state/hidden_states"
+                )
+            hidden = _ensure_single_batch_bsd(hidden, "decoder contextual hidden state")
+            if _shape(hidden)[1] < q_len:
+                raise RuntimeError(
+                    "decoder contextual hidden state 短于当前 q_len："
+                    f"hidden={_shape(hidden)[1]}, q_len={q_len}"
+                )
+            # Some model wrappers may expose past+current hidden states.  Only
+            # the current visual q_len belongs to this chunk's EncoderOutput.
+            contextual_outputs.append(hidden[:, -q_len:, :])
+            return output
+
         self.model.get_video_features = recording_get_video_features
+        if self.feature_stage == "decoder_contextual":
+            assert language_model is not None and callable(original_language_forward)
+            language_model.forward = recording_language_forward
         try:
             # This is the real HERMES streaming path.  We intentionally do not
             # call get_video_features separately and duplicate vision compute.
             self.model.encode_video_chunk(model_chunk)
         finally:
-            self.model.get_video_features = original
-        if not captured:
+            self.model.get_video_features = original_get_video_features
+            if self.feature_stage == "decoder_contextual":
+                language_model.forward = original_language_forward
+        if not projected_outputs:
             raise RuntimeError(
                 "HERMES encode_video_chunk 未调用 get_video_features，无法无重复计算地捕获视觉 token"
             )
-        features = captured[-1]
-        shape = _shape(features)
-        if len(shape) == 2:
-            if hasattr(features, "unsqueeze"):
-                features = features.unsqueeze(0)
-            else:
-                features = np.expand_dims(np.asarray(features), axis=0)
-            shape = _shape(features)
-        if len(shape) != 3 or shape[0] != 1 or min(shape) <= 0:
-            raise RuntimeError(f"HERMES 投影后视觉 token 必须是 [1,S,D]，实际为 {shape}")
-        return features
+        projected = _ensure_single_batch_bsd(projected_outputs[-1], "HERMES 投影后视觉 token")
+        contextual = None
+        if self.feature_stage == "decoder_contextual":
+            if not contextual_outputs:
+                raise RuntimeError(
+                    "feature_stage=decoder_contextual，但未捕获当前 chunk decoder hidden state"
+                )
+            contextual = _ensure_single_batch_bsd(
+                contextual_outputs[-1], "decoder contextual hidden state"
+            )
+            if _shape(contextual)[1] != _shape(projected)[1]:
+                raise RuntimeError(
+                    "decoder contextual current q_len 与 projected visual token 数不一致："
+                    f"contextual={_shape(contextual)[1]}, projected={_shape(projected)[1]}"
+                )
+        return projected, contextual
 
     def _build_raw_after_views(
         self,
@@ -888,9 +988,15 @@ class HermesLlavaOVAdapter(StreamingVideoEncoderAdapter):
 
             started = time.perf_counter()
             valid_frames = int(chunk.valid_lengths[0])
-            visual_tokens = self._capture_projected_tokens(
+            projected_visual, decoder_contextual = self._capture_chunk_features(
                 _as_model_chunk(chunk.frames[0, :valid_frames])
             )
+            selected_features = (
+                decoder_contextual
+                if self.feature_stage == "decoder_contextual"
+                else projected_visual
+            )
+            assert selected_features is not None
             elapsed_ms = (time.perf_counter() - started) * 1000.0
             raw_views, raw_updates = self._build_raw_after_views(chunk, state)
             native_views, native_updates, native_telemetry = self._run_native_compression(raw_views)
@@ -911,12 +1017,27 @@ class HermesLlavaOVAdapter(StreamingVideoEncoderAdapter):
                 )
 
             output = EncoderOutput(
-                features=visual_tokens,
-                pooled=_mean_tokens(visual_tokens),
-                timeline=_chunk_token_timeline(chunk, _shape(visual_tokens)[1], source_frames=True),
+                features=selected_features,
+                pooled=_mean_tokens(selected_features),
+                timeline=_chunk_token_timeline(
+                    chunk, _shape(selected_features)[1], source_frames=True
+                ),
                 aux={
                     "adapter": "hermes_llava_ov",
-                    "feature_stage": "projected_and_pooled_before_decoder",
+                    "feature_stage": self.feature_stage,
+                    "cache_conditioned": self.feature_stage == "decoder_contextual",
+                    "comparison_scope": (
+                        "accuracy_and_performance"
+                        if self.feature_stage == "decoder_contextual"
+                        else "performance_only"
+                    ),
+                    "decoder_context_scope": (
+                        "current_q_len_only" if self.feature_stage == "decoder_contextual" else None
+                    ),
+                    "projected_visual_shape": list(_shape(projected_visual)),
+                    "decoder_contextual_shape": (
+                        list(_shape(decoder_contextual)) if decoder_contextual is not None else None
+                    ),
                     "cache_owner": "language_model_decoder",
                     "timeline_policy": "uniform_visual_token_to_frame_approximation",
                 },
@@ -945,15 +1066,17 @@ class HermesLlavaOVAdapter(StreamingVideoEncoderAdapter):
             )
             telemetry: dict[str, Any] = {
                 "encode_ms": elapsed_ms,
-                "input_tokens": before_summary["tokens_max"] + _shape(visual_tokens)[1],
+                "input_tokens": before_summary["tokens_max"] + _shape(projected_visual)[1],
                 # The system prompt prepared by init_state is not a video-cache
                 # hit.  Reuse begins once a prior video chunk exists.
                 "reused_tokens": (before_summary["tokens_max"] if state.step_index > 0 else 0),
-                "output_tokens": _shape(visual_tokens)[1],
+                "output_tokens": _shape(selected_features)[1],
                 "cache_bytes": after_summary["bytes"],
                 "cache_hit": state.step_index > 0 and before_summary["tokens_max"] > 0,
                 "frames_encoded": valid_frames,
-                "projected_visual_tokens": _shape(visual_tokens)[1],
+                "projected_visual_tokens": _shape(projected_visual)[1],
+                "feature_stage": self.feature_stage,
+                "feature_cache_conditioned": self.feature_stage == "decoder_contextual",
                 "decoder_kv_layers": after_summary["layers"],
                 "decoder_kv_tokens_before_min": before_summary["tokens_min"],
                 "decoder_kv_tokens_before_max": before_summary["tokens_max"],
