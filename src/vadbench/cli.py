@@ -7,6 +7,7 @@ import json
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -31,10 +32,6 @@ from vadbench.data.ucf_crime import (
 )
 from vadbench.data.video import iter_fixed_segment_batches, iter_streaming_chunk_batches
 from vadbench.doctor import diagnostics_json
-from vadbench.engine.evaluate import evaluate_ucf_prediction_records
-from vadbench.engine.extract import FeatureExtractionEngine
-from vadbench.engine.predict import predict_feature_head
-from vadbench.engine.runner import train_feature_head
 from vadbench.features import FeatureStore, atomic_write_json
 from vadbench.orchestration import (
     compression_from_experiment,
@@ -45,6 +42,38 @@ from vadbench.registry import ENCODER_REGISTRY, RegistryError
 from vadbench.smoke import run_encoder_smoke, write_smoke_result
 
 DEFAULT_REGISTRY = Path("registry/checkpoints.yaml")
+
+
+def evaluate_ucf_prediction_records(*args: Any, **kwargs: Any) -> Any:
+    """Load frame-level evaluation code only when the command needs it."""
+
+    from vadbench.engine.evaluate import evaluate_ucf_prediction_records as implementation
+
+    return implementation(*args, **kwargs)
+
+
+def _feature_extraction_engine(*args: Any, **kwargs: Any) -> Any:
+    """Construct the extraction engine without importing torch during CLI discovery."""
+
+    from vadbench.engine.extract import FeatureExtractionEngine
+
+    return FeatureExtractionEngine(*args, **kwargs)
+
+
+def predict_feature_head(*args: Any, **kwargs: Any) -> Any:
+    """Load the prediction stack only when ``predict`` executes."""
+
+    from vadbench.engine.predict import predict_feature_head as implementation
+
+    return implementation(*args, **kwargs)
+
+
+def train_feature_head(*args: Any, **kwargs: Any) -> Any:
+    """Load the training stack only when ``train`` executes."""
+
+    from vadbench.engine.runner import train_feature_head as implementation
+
+    return implementation(*args, **kwargs)
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -478,7 +507,7 @@ def _extract(args: argparse.Namespace) -> int:
         "sampler": config.get("sampler", {}),
         "streaming": config.get("streaming", {}),
     }
-    engine = FeatureExtractionEngine(
+    engine = _feature_extraction_engine(
         adapter=adapter,
         manifest=fingerprint_manifest,
         feature_store=feature_store,
