@@ -6,32 +6,31 @@ constructor:
   model_name: mit-han-lab/StreamingVLM
   checkout_path: external/streaming-vlm
   model_path: weights/streaming-vlm
-  runtime: external_python
-  device: cuda
+  runtime: in_process
+  device: cpu
   prompt: Describe the visible video content, actions, objects, and temporal changes
     without assuming any event label.
   feature_stage: decoder_contextual
   cache_mode: identity
   streaming: true
-  chunk_frames: 4
+  chunk_frames: 1
   strict_assets: true
-  upstream_entrypoint: streaming_vlm/inference/inference.py:load_model
   preprocess_profile: streaming-vlm-bthwc-v1
 checkpoint:
   source: huggingface
   model_id: mit-han-lab/StreamingVLM
-  revision: a940d8cbfa14eefe651b7f4adeb81825c28cc6c6
+  revision: 7ac1cef46d20432053a9814838760318cb26b348
   license: mit
   local_path: weights/streaming-vlm
 input_profile:
-  clip_frames: 4
+  clip_frames: 2
   frame_stride: 2
   image_size: 448
   sampling: streaming_uniform
 output:
   feature_stage: decoder_contextual
   sequence_source: decoder_hidden_state
-  implementation_source: external_worker_facade
+  implementation_source: native_upstream
 capabilities:
   supports_fixed_clip: false
   supports_streaming: true

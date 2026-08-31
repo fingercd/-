@@ -14,9 +14,9 @@
 | 原生状态 | 数量 |
 |---|---:|
 | `smoke_pass` | 14 |
-| `planned` | 10 |
+| `planned` | 9 |
 | `failed` | 0 |
-| `blocked` | 1（VideoChat-Online 无 LICENSE 文件） |
+| `blocked` | 2（VideoChat-Online 无 LICENSE；StreamingVLM 权重 license 未声明） |
 
 ## 原生接入矩阵
 
@@ -43,7 +43,7 @@
 | 19 | `videochat_flash` | `smoke_pass` | 官方 2B res448 snapshot；只加载视觉塔/projector，关闭 `mm_llm_compress`；输出 `[1,64,1536]` |
 | 20 | `ma_lmm` | `planned` | 获取官方 saved_model.tar + InstructBLIP/LAVIS/Vicuna 资产 |
 | 21 | `moviechat` | `planned` | 固定 MovieChat/Onevision checkpoint、base model 和多份许可证 |
-| 22 | `streaming_vlm` | `planned` | 下载官方 8B BF16 四分片权重，接真实 compact decoder KV |
+| 22 | `streaming_vlm` | `blocked` | 原生两 chunk decoder-KV 已通过（`[1,99,3584]`，cache `99→198`）；模型卡未声明权重 license |
 | 23 | `infinipot_v` | `planned` | 官方研究复现 + Qwen2.5-VL base；许可证未确认则 blocked |
 | 24 | `hermes_llava_ov` | `smoke_pass` | HERMES + LLaVA-OneVision 0.5B 原生权重，两 chunk 通过 |
 | 25 | `mukv` | `planned` | 使用官方 MuKV 代码 + LLaVA-OneVision 0.5B base；许可证先行 |

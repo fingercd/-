@@ -545,27 +545,48 @@ checkpoints:
       model is accepted for native smoke.
   streaming_vlm-default:
     adapter: streaming_vlm
-    source: github
+    source: huggingface
     repo_id: mit-han-lab/StreamingVLM
     repo_url: https://github.com/mit-han-lab/streaming-vlm
-    revision: a940d8cbfa14eefe651b7f4adeb81825c28cc6c6
-    variant: StreamingVLM-7B
-    license: mit
-    license_url: https://github.com/mit-han-lab/streaming-vlm/blob/main/LICENSE
-    allow_patterns: []
-    artifact_url: null
+    revision: 7ac1cef46d20432053a9814838760318cb26b348
+    variant: StreamingVLM-8B
+    license: unknown
+    license_url: https://github.com/mit-han-lab/streaming-vlm
+    allow_patterns:
+    - config.json
+    - model-00001-of-00004.safetensors
+    - model-00002-of-00004.safetensors
+    - model-00003-of-00004.safetensors
+    - model-00004-of-00004.safetensors
+    - model.safetensors.index.json
+    artifact_url: https://huggingface.co/mit-han-lab/StreamingVLM
     local_path: weights/streaming-vlm
     files:
-    - path: null
-      upstream_name: null
-      size_bytes: null
-      sha256: null
-    sha256: {}
-    size_bytes: null
-    status: planned
-    notes: 官方代码仓库已登记；具体 SFT checkpoint 尚未冻结。该路线支持 decoder KV， 但本 Goal 只验证基础流式状态，不登记任何压缩预算或收益。
-      Native checkpoint is not yet materialised on the server; no substitute model
-      is accepted for native smoke.
+    - path: model-00001-of-00004.safetensors
+      upstream_name: model-00001-of-00004.safetensors
+      size_bytes: 4968243304
+      sha256: ffaab74c488b492f21f90f2a195aac2fa87456fc98109169780871a9634a9253
+    - path: model-00002-of-00004.safetensors
+      upstream_name: model-00002-of-00004.safetensors
+      size_bytes: 4991495816
+      sha256: 7b2e161d13db99027d93700ac0dd58e41030e70fca6884a194f65fd23952e816
+    - path: model-00003-of-00004.safetensors
+      upstream_name: model-00003-of-00004.safetensors
+      size_bytes: 4932751040
+      sha256: 7ae8a1f532c5b095df816fb037afc7eefeec8728fc090fea1f3376dd87314d98
+    - path: model-00004-of-00004.safetensors
+      upstream_name: model-00004-of-00004.safetensors
+      size_bytes: 1691924384
+      sha256: ba606719fe1e8ce4ca81f723b4f186a92f19feaa53d010bd1ac076e25bd7d020
+    sha256:
+      model-00001-of-00004.safetensors: ffaab74c488b492f21f90f2a195aac2fa87456fc98109169780871a9634a9253
+      model-00002-of-00004.safetensors: 7b2e161d13db99027d93700ac0dd58e41030e70fca6884a194f65fd23952e816
+      model-00003-of-00004.safetensors: 7ae8a1f532c5b095df816fb037afc7eefeec8728fc090fea1f3376dd87314d98
+      model-00004-of-00004.safetensors: ba606719fe1e8ce4ca81f723b4f186a92f19feaa53d010bd1ac076e25bd7d020
+    size_bytes: 16584333312
+    status: verified
+    notes: 官方 StreamingVLM 8B 四分片 checkpoint 已同步并按 SHA256 校验；原生 adapter 通过 Qwen2.5-VL
+      get_video_features + decoder DynamicCache 验证两步递进。模型卡未提供明确 license，许可审计后再计入 PASS。
   infinipot_v-default:
     adapter: infinipot_v
     source: github

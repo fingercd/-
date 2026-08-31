@@ -481,20 +481,25 @@ integrations:
 - id: streaming_vlm
   display_name: StreamingVLM
   family: streaming_vlm
-  status: planned
+  status: blocked
   definition: configs/encoders/streaming-vlm.yaml
   adapter_target: vadbench.integrations.long_video.streaming_vlm:StreamingVLMAdapter
   backend: streaming-vlm
   run_mode: streaming
   feature_stage: decoder_contextual
   environment:
-    runtime: external_python
+    runtime: in_process
     profile: streaming-vlm
   upstream_lock: integrations/streaming_vlm/upstream.lock.yaml
   checkpoint:
     registry_id: streaming_vlm-default
-    status: planned
-  smoke_profile: *id008
+    status: verified
+  smoke_profile:
+    profile: streaming-2x1x448
+    clip_frames: 2
+    frame_stride: 1
+    image_size: 448
+    chunks: 2
   capabilities: &id010
     supports_fixed_clip: false
     supports_streaming: true
