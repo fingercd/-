@@ -23,10 +23,13 @@ entrypoints:
 weights:
   provider: huggingface
   model_id: MCG-NJU/VideoChatOnline-4B
-  revision: main
+  revision: 7373f325b9265527b9363f231b168a14523ac875
   local_dir: weights/videochat-online
-  sha256: {}
-  status: planned
+  sha256:
+    model-00001-of-00002.safetensors: 90e6a81a96bbf548f4702b235662540bbe21db0a10549903440dc9c6e6c5b0aa
+    model-00002-of-00002.safetensors: ce16c31343c1bd7a4a2156bec2cd52ef49d7a5505cdca3ee7da51537437649ab
+  size_bytes: 8293711872
+  status: verified
 
 integration_notes:
   - 当前公开实现的 Pyramid Memory Bank 以 ViT feature memory 为主；KV 版本尚未作为本 lock 的运行前提。

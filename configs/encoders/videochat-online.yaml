@@ -6,8 +6,8 @@ constructor:
   model_name: MCG-NJU/VideoChatOnline-4B
   checkout_path: external/videochat-online
   model_path: weights/videochat-online
-  runtime: external_python
-  device: cuda
+  runtime: in_process
+  device: cpu
   prompt: Describe the visible video content, actions, objects, and temporal changes
     without assuming any event label.
   feature_stage: visual_memory
@@ -15,23 +15,22 @@ constructor:
   streaming: true
   chunk_frames: 4
   strict_assets: true
-  upstream_entrypoint: internvl/model.py:load_model
   preprocess_profile: videochat-online-bthwc-v1
 checkpoint:
   source: huggingface
   model_id: MCG-NJU/VideoChatOnline-4B
-  revision: 012712affb74681b88a317656a1effcf7b095933
+  revision: 7373f325b9265527b9363f231b168a14523ac875
   license: unknown
   local_path: weights/videochat-online
 input_profile:
   clip_frames: 4
   frame_stride: 2
-  image_size: 336
+  image_size: 448
   sampling: streaming_uniform
 output:
   feature_stage: visual_memory
   sequence_source: pyramid_memory_bank
-  implementation_source: external_worker_facade
+  implementation_source: native_upstream
 capabilities:
   supports_fixed_clip: false
   supports_streaming: true

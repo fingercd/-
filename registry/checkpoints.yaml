@@ -452,17 +452,21 @@ checkpoints:
     artifact_url: https://huggingface.co/MCG-NJU/VideoChatOnline-4B
     local_path: weights/videochat-online
     files:
-    - path: null
-      upstream_name: null
-      size_bytes: null
-      sha256: null
-    sha256: {}
-    size_bytes: null
-    status: planned
-    notes: 官方项目页/代码 commit 与可访问的 HF `VideoChatOnline-4B` checkpoint 分开追踪； upstream
-      lock 曾写带连字符的 ID，本条采用实际可解析的无连字符 ID，并保留 artifact_revision；这是 visual_memory 路线，不应与
-      decoder_kv 共享 adapter。 Native checkpoint is not yet materialised on the server;
-      no substitute model is accepted for native smoke.
+    - path: model-00001-of-00002.safetensors
+      upstream_name: model-00001-of-00002.safetensors
+      size_bytes: 4957392176
+      sha256: 90e6a81a96bbf548f4702b235662540bbe21db0a10549903440dc9c6e6c5b0aa
+    - path: model-00002-of-00002.safetensors
+      upstream_name: model-00002-of-00002.safetensors
+      size_bytes: 3336385864
+      sha256: ce16c31343c1bd7a4a2156bec2cd52ef49d7a5505cdca3ee7da51537437649ab
+    sha256:
+      model-00001-of-00002.safetensors: 90e6a81a96bbf548f4702b235662540bbe21db0a10549903440dc9c6e6c5b0aa
+      model-00002-of-00002.safetensors: ce16c31343c1bd7a4a2156bec2cd52ef49d7a5505cdca3ee7da51537437649ab
+    size_bytes: 8293711872
+    status: verified
+    notes: 官方 HF VideoChatOnline-4B 两分片 checkpoint 已同步并按 SHA256 校验；按官方 Pyramid Memory Bank
+      代码注册为 visual_memory，绝不写成 decoder KV。仓库 README 有 MIT badge 但根目录无 LICENSE 文件，许可仍需审计。
   videochat_flash-default:
     adapter: videochat_flash
     source: huggingface

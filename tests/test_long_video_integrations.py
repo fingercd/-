@@ -432,7 +432,9 @@ def test_all_long_video_configs_and_locks_are_pinned_and_consistent() -> None:
         assert config["constructor"]["prompt"] == DEFAULT_NEUTRAL_PROMPT
         assert config["constructor"]["feature_stage"] == stages[encoder_id]
         expected_source = (
-            "native_upstream" if encoder_id == "videochat_flash" else "external_worker_facade"
+            "native_upstream"
+            if encoder_id in {"videochat_flash", "videochat_online"}
+            else "external_worker_facade"
         )
         assert config["output"]["implementation_source"] == expected_source
         assert config["cache_semantics"]["compression"] == "disabled"
@@ -442,5 +444,7 @@ def test_all_long_video_configs_and_locks_are_pinned_and_consistent() -> None:
         assert lock["integration"] == encoder_id
         assert commit_pattern.fullmatch(lock["source"]["commit"])
         assert lock["source"]["commit"] in lock["source"]["commit_url"]
-        expected_weight_status = "verified" if encoder_id == "videochat_flash" else "planned"
+        expected_weight_status = (
+            "verified" if encoder_id in {"videochat_flash", "videochat_online"} else "planned"
+        )
         assert lock["weights"]["status"] == expected_weight_status

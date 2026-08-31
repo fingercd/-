@@ -14,9 +14,9 @@
 | 原生状态 | 数量 |
 |---|---:|
 | `smoke_pass` | 13 |
-| `planned` | 12 |
+| `planned` | 11 |
 | `failed` | 0 |
-| `blocked` | 0（资产/许可证预检后可能出现） |
+| `blocked` | 1（VideoChat-Online 无 LICENSE 文件） |
 
 ## 原生接入矩阵
 
@@ -39,7 +39,7 @@
 | 15 | `vjepa2` | `smoke_pass` | Meta `facebook/vjepa2-vitl-fpc64-256`，输出 `[1,8192,1024]`；当前视频真实前向通过 |
 | 16 | `longvu` | `planned` | 下载官方视频 checkpoint；40 GB GPU 资源预检；导出 projected visual |
 | 17 | `videochat` | `planned` | 核验 Ask-Anything 官方可下载 checkpoint；仅 demo 则 blocked |
-| 18 | `videochat_online` | `planned` | 下载官方 4B checkpoint；按公开实现注册为 `visual_memory`，不是 decoder KV |
+| 18 | `videochat_online` | `blocked` | 原生两 chunk 已通过（`[1,304,3072]` → `[1,608,3072]`）；官方仓库无 LICENSE 文件，许可审计未过 |
 | 19 | `videochat_flash` | `smoke_pass` | 官方 2B res448 snapshot；只加载视觉塔/projector，关闭 `mm_llm_compress`；输出 `[1,64,1536]` |
 | 20 | `ma_lmm` | `planned` | 获取官方 saved_model.tar + InstructBLIP/LAVIS/Vicuna 资产 |
 | 21 | `moviechat` | `planned` | 固定 MovieChat/Onevision checkpoint、base model 和多份许可证 |

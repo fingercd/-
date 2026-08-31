@@ -16,7 +16,7 @@
 | `vjepa2` | [facebookresearch/vjepa2](https://github.com/facebookresearch/vjepa2) | Meta 直链 `https://dl.fbaipublicfiles.com/vjepa2/vitl-256.pt` 或 [facebook/vjepa2-vitl-fpc64-256](https://huggingface.co/facebook/vjepa2-vitl-fpc64-256) | encoder 输出（不使用 predictor/head） | 需要 decord/timm/einops；官方 README 明确要求本地下载 checkpoint |
 | `longvu` | [Vision-CAIR/LongVU](https://github.com/Vision-CAIR/LongVU) | [Vision-CAIR/LongVU_Qwen2_7B](https://huggingface.co/Vision-CAIR/LongVU_Qwen2_7B)，或预检确认可用的较小官方视频变体 | DINOv2/SigLIP→projector 的视觉 token | 官方 README 写明本地 demo 最低约 40 GB GPU；必须拆出 visual path，不把生成文本作为 encoder |
 | `videochat` | [OpenGVLab/Ask-Anything](https://github.com/OpenGVLab/Ask-Anything) | 以官方 README 的 VideoChat/VideoChat2 模型链接为准，先确认实际 checkpoint 文件 | InternVideo/UMT 视觉输出或 VideoChat projector 输出 | 原始 VideoChat 依赖 Vicuna/旧栈；若官方链接只有 Space、无可下载权重，直接 blocked |
-| `videochat_online` | [MCG-NJU/VideoChat-Online](https://github.com/MCG-NJU/VideoChat-Online) | [MCG-NJU/VideoChatOnline-4B](https://huggingface.co/MCG-NJU/VideoChatOnline-4B)，8.29 GB，MIT | 官方 ViT features + Pyramid Memory Bank，`visual_memory` | README 明确当前开源实现基于 ViT feature，KV-cache 版本尚未提供；不能标成 decoder KV |
+| `videochat_online` | [MCG-NJU/VideoChat-Online](https://github.com/MCG-NJU/VideoChat-Online) | [MCG-NJU/VideoChatOnline-4B](https://huggingface.co/MCG-NJU/VideoChatOnline-4B)，8.29 GB，HF license unknown；README 仅有 MIT badge，仓库根目录无 LICENSE 文件 | 官方 ViT features + Pyramid Memory Bank，`visual_memory` | README 明确当前开源实现基于 ViT feature，KV-cache 版本尚未提供；不能标成 decoder KV |
 | `videochat_flash` | [OpenGVLab/VideoChat-Flash](https://github.com/OpenGVLab/VideoChat-Flash) | [VideoChat-Flash-Qwen2_5-2B_res448](https://huggingface.co/OpenGVLab/VideoChat-Flash-Qwen2_5-2B_res448)，Apache-2.0 | `get_vision_tower()`/projected visual，关闭其压缩开关 | 官方示例需要 `trust_remote_code`、Transformers 4.40.1 和可选 flash-attn |
 | `ma_lmm` | [boheumd/MA-LMM](https://github.com/boheumd/MA-LMM) | 官方 `saved_model.tar` + InstructBLIP/LAVIS/Vicuna 依赖 | Q-Former memory bank，`visual_memory` | 权重分散在外部链接；多份上游许可证，必须分别登记 |
 | `moviechat` | [wenhaochai/MovieChat](https://github.com/wenhaochai/MovieChat) | 官方 README 的 MovieChat/MovieChat-Onevision 权重及显式 base model | short/long visual memory | BSD、LAVIS、MiniGPT-4、VideoLLaMA 等多许可证；不能自动下载 |
@@ -27,6 +27,6 @@
 ## 结论
 
 - 17 条路线都存在真实的“原生接入路径”，但可执行性不是均等的：HF 权重（TimeSformer、VideoMAE、VideoChat-Online、VideoChat-Flash、StreamingVLM、LongVU、V-JEPA2）优先；OSS/Google Drive/Caffe/旧 CUDA 路线必须逐项预检。
-- VideoChat-Online 的当前公开代码只能作为 `visual_memory`；只有未来官方 KV 实现出现并通过 state 等价测试后才可升级为 `decoder_kv`。
+- VideoChat-Online 的当前公开代码只能作为 `visual_memory`；当前原生两 chunk 已通过，但因仓库根目录无 LICENSE 文件进入 `blocked`；只有许可审计和未来官方 KV 实现均满足时才可升级。
 - InfiniPot-V 和 MuKV 即使代码可见，也不能在许可证未确认时复制进主树或标记可再分发。
 - 兼容桥只能保留为独立的框架契约测试，不能出现在原生 smoke 的 checkpoint、状态或 PASS 统计中。

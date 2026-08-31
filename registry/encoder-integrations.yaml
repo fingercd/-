@@ -389,24 +389,24 @@ integrations:
 - id: videochat_online
   display_name: VideoChat-Online
   family: streaming_vlm
-  status: planned
+  status: blocked
   definition: configs/encoders/videochat-online.yaml
   adapter_target: vadbench.integrations.long_video.videochat_online:VideoChatOnlineAdapter
   backend: videochat-online
   run_mode: streaming
   feature_stage: visual_memory
   environment:
-    runtime: external_python
+    runtime: in_process
     profile: videochat-online
   upstream_lock: integrations/videochat_online/upstream.lock.yaml
   checkpoint:
     registry_id: videochat_online-default
-    status: planned
+    status: verified
   smoke_profile: &id008
-    profile: streaming-2x4x336
+    profile: streaming-2x4x448
     clip_frames: 4
     frame_stride: 2
-    image_size: 336
+    image_size: 448
     chunks: 2
   capabilities: &id009
     supports_fixed_clip: false
