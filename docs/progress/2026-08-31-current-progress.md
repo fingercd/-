@@ -4,7 +4,7 @@
 
 此前文档把 17 条 R(2+1)D 兼容桥结果写成目标模型的 `smoke_pass`，该结论错误。兼容桥只能证明统一输入输出框架可运行，不能证明对应模型已经接入。
 
-当前可信状态是：**8 条原生路线真实权重通过，17 条原生路线待接入**。旧 `outputs/encoder-integration/current-video-final/` 矩阵视为 `contract_only` 历史产物，不再进入原生统计。
+当前可信状态是：**12 条原生路线真实权重通过，13 条原生路线待接入**。旧 `outputs/encoder-integration/current-video-final/` 矩阵视为 `contract_only` 历史产物，不再进入原生统计。
 
 纠错计划：`docs/plans/2026-08-31-native-encoder-integration-correction.md`；来源审计：`docs/research/native-encoder-source-audit-2026-08-31.md`。
 
@@ -35,10 +35,10 @@
 - 节点：`ibnode3`（node3）
 - 项目目录：`/users/fotile/VAD`
 - 分支：`feat/video-encoder-benchmark-framework`
-- 当前代码基线：`38a5f43`（25 路框架）；当前纠错提交：`b2dc918`；此前兼容桥历史提交：`ce32013`
+- 当前代码基线：`38a5f43`（25 路框架）；当前纠错提交：`b2dc918`；最新原生提交：`f4fe41f`（VideoMamba）；此前兼容桥历史提交：`ce32013`
 - 主运行环境：`/users/fotile/VAD/.venv`
 - HERMES 隔离环境：`/users/fotile/VAD/.venv-hermes`
-- PyTorch/CUDA：`torch 2.5.1+cu124` / CUDA 12.4
+- PyTorch/CUDA：主 `.venv` 为 `torch 2.5.1+cu124` / CUDA 12.4；VideoMamba 原生 smoke 使用隔离的 `mllm-comp-internav`（torch 2.8.0 / CUDA 12.9），CPU reference selective-scan 路径
 - HERMES Transformers：官方锁定的 `4.45.0.dev0`（源码 commit `66bc4def9505fa7c7fe4aa7a248c34a026bb552b`）
 - GPU 占用是动态状态；每次作业启动前重新检查 GPU、进程用户与完整命令，不沿用旧空卡快照。
 
@@ -69,6 +69,19 @@ GPU 运行时注意：
   - `projected_visual`：decoder 前视觉 token，只适合链路/性能观察；
   - `decoder_contextual`：受历史 KV 及压缩策略条件影响，适合后续压缩算法的语义读出。
 
+### VideoMamba
+
+- Adapter：`videomamba`
+- 官方 checkout：`external/videomamba`，commit `37355c26d0ae99ca2459f6d4044a5f509031a79f`
+- 权重：`weights/videomamba/videomamba_t16_k400_f16_res224.pth`
+- 权重 SHA256：`a335d728ae4dbe4f49a435022f95c6cf98108d20fe084120db1f18cb73e84f4a`，28,290,634 bytes
+- 原生输出：`[1,1,192]`，`torch.float32`，CPU reference selective scan；不宣称跨 clip state/cache。
+
+### V-JEPA 2
+
+- Adapter：`vjepa2`；权重目录：`weights/vjepa2`；Meta 官方 `facebook/vjepa2-vitl-fpc64-256`。
+- 当前视频输出：`features=[1,8192,1024]`、`pooled=[1,1024]`，`native_route_available=true`；固定 64 帧 profile，不宣称 streaming cache。
+
 ## 4. 当前视频
 
 主要真实监控样例：
@@ -87,9 +100,17 @@ GPU 运行时注意：
 
 ### 自动化测试
 
-- 服务器全量测试：`360 passed, 1 skipped`
-- 服务器 Ruff check/format、compileall、`git diff --check` 均通过。
-- 原生当前状态：8 项 `smoke_pass`，17 项 `planned`。此前 25 项矩阵属于包含兼容桥的 `contract_only` 历史产物。
+- VideoMamba 提交前定向测试：`55 passed, 1 warning`；Ruff check/format 与 `git diff --check` 通过。
+- 最新全量测试基线仍需在本次四路原生变更后复跑；此前全量为 `360 passed, 1 skipped`。
+- 原生当前状态：12 项 `smoke_pass`，13 项 `planned`。此前 25 项矩阵属于包含兼容桥的 `contract_only` 历史产物。
+
+### TimeSformer 真权重
+
+已在 node3 CPU 使用 `facebook/timesformer-base-finetuned-k400` 真实权重跑通当前视频：输出 hidden state，固定 8 帧，`native_route_available=true`。
+
+### VideoMAE 真权重
+
+已在 node3 CPU 使用 `MCG-NJU/videomae-base` 真实权重跑通当前视频：输出 `[1,1568,768]`，`pooled=[1,768]`，`native_route_available=true`。
 
 ### VideoMAE V2 真权重
 
@@ -124,8 +145,8 @@ GPU 运行时注意：
 
 ## 5.1 25 路原生接入现状
 
-- 原生真实权重当前视频通过：`r2plus1d_18`、`x3d`、`mvitv2`、`slowfast`、`i3d`、`video_swin`、`videomaev2`、`hermes_llava_ov`。
-- 其余 17 条默认配置已删除兼容桥并恢复 native checkpoint 路径，状态改回 `planned`。
+- 原生真实权重当前视频通过：`r2plus1d_18`、`x3d`、`mvitv2`、`slowfast`、`i3d`、`video_swin`、`videomaev2`、`hermes_llava_ov`、`timesformer`、`videomae`、`videomamba`、`vjepa2`。
+- 其余 13 条默认配置已删除兼容桥并恢复 native checkpoint 路径，状态保持 `planned`；InternVideo2 的官方 HF 权重当前返回 gated 403，尚未把该路线计入 PASS。
 - 后续严格按纠错计划逐条获取官方代码/权重；资产或许可证不满足时标记 `blocked`，不再使用其他模型替代。
 - 原生矩阵见 `docs/progress/encoder-integration-matrix.md`。
 

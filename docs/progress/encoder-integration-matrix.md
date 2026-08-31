@@ -13,8 +13,8 @@
 
 | 原生状态 | 数量 |
 |---|---:|
-| `smoke_pass` | 8 |
-| `planned` | 17 |
+| `smoke_pass` | 12 |
+| `planned` | 13 |
 | `failed` | 0 |
 | `blocked` | 0（资产/许可证预检后可能出现） |
 
@@ -28,15 +28,15 @@
 | 4 | `slowfast` | `smoke_pass` | PyTorchVideo SlowFast-R50 原生权重，当前视频通过 |
 | 5 | `c3d` | `planned` | 获取原始/官方转换 Sports-1M C3D 权重；导出 fc6/fc7 |
 | 6 | `i3d` | `smoke_pass` | PyTorchVideo I3D-R50 原生权重，当前视频通过 |
-| 7 | `timesformer` | `planned` | 下载 `facebook/timesformer-base-finetuned-k400` 并导出 hidden state |
+| 7 | `timesformer` | `smoke_pass` | `facebook/timesformer-base-finetuned-k400`，固定 8 帧；当前视频真实前向通过 |
 | 8 | `video_swin` | `smoke_pass` | TorchVision Swin3D-T 原生权重，当前视频通过 |
-| 9 | `videomae` | `planned` | 下载 `MCG-NJU/videomae-base` 并只导出 encoder hidden state |
+| 9 | `videomae` | `smoke_pass` | `MCG-NJU/videomae-base`，输出 `[1,1568,768]`；当前视频真实前向通过 |
 | 10 | `videomaev2` | `smoke_pass` | OpenGVLab VideoMAE V2 Base 原生权重，当前视频通过 |
 | 11 | `uniformerv2` | `planned` | 固定官方 K400 B/16 model-zoo checkpoint 与运行 config |
 | 12 | `umt` | `planned` | 复核官方 model-zoo 失效链接；无权重则 blocked |
 | 13 | `internvideo2` | `planned` | 下载 Stage2 1B 224p-f4，构造真实 vision encoder |
-| 14 | `videomamba` | `planned` | 下载官方 Tiny K400 checkpoint，建立 selective-scan 隔离环境 |
-| 15 | `vjepa2` | `planned` | 下载 Meta ViT-L/16 checkpoint，导出 encoder 输出 |
+| 14 | `videomamba` | `smoke_pass` | 官方 Tiny K400 16-frame checkpoint + pinned checkout；输出 `[1,1,192]`；CPU reference selective scan |
+| 15 | `vjepa2` | `smoke_pass` | Meta `facebook/vjepa2-vitl-fpc64-256`，输出 `[1,8192,1024]`；当前视频真实前向通过 |
 | 16 | `longvu` | `planned` | 下载官方视频 checkpoint；40 GB GPU 资源预检；导出 projected visual |
 | 17 | `videochat` | `planned` | 核验 Ask-Anything 官方可下载 checkpoint；仅 demo 则 blocked |
 | 18 | `videochat_online` | `planned` | 下载官方 4B checkpoint；按公开实现注册为 `visual_memory`，不是 decoder KV |

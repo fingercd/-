@@ -19,7 +19,7 @@ VADBench 用同一套数据、时间轴和产物协议编排 25 条视频模型/
 | VideoMAE V2 adapter | ✅ | 稳定 pooled 输出；可选内部 hook 序列 |
 | HERMES adapter | ✅ | decoder KV、position IDs、原生层次压缩与遥测 |
 | 25 路 catalog/lazy registry | ✅ | 固定 clip、foundation、长视频/VLM 统一登记与能力协商 |
-| 原生当前视频 smoke v3 | 进行中 | 8 条原生路线已通过；17 条等待各自真实权重与上游接入 |
+| 原生当前视频 smoke v3 | 进行中 | 12 条原生路线已通过；13 条等待各自真实权重与上游接入 |
 | 特征仓和运行产物 | ✅ | 内容寻址 NPZ/NPY + 版本化 JSONL |
 | 弱监督/强监督训练 | ✅ | Attention/Top-k MIL 与 temporal head |
 | UCF 帧级评测 | ✅ | micro frame ROC-AUC/AP |
@@ -133,8 +133,8 @@ UCA 的时间戳自然语言事件可以用 `--uca-captions` 附加，但 `is_an
 
 ## 25 路原生接入计划
 
-当前 catalog 保留 25 个目标，但严格区分原生状态：8 条路线已经用各自代码和各自公开权重
-通过当前视频 smoke，17 条路线仍为 `planned`，等待各自的官方 checkout、checkpoint、许可证
+当前 catalog 保留 25 个目标，但严格区分原生状态：12 条路线已经用各自代码和各自公开权重
+通过当前视频 smoke，13 条路线仍为 `planned`，等待各自的官方 checkout、checkpoint、许可证
 和隔离环境。旧兼容桥输出只作为 `contract_only` 框架测试，不进入原生统计。
 
 详细的逐路线来源、真实 checkpoint、加载入口和阻塞条件见：
