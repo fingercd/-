@@ -103,6 +103,52 @@ def _parser() -> argparse.ArgumentParser:
     encoders_inspect.add_argument("encoder_id")
     encoders_inspect.set_defaults(handler=_encoders_inspect)
 
+    integrations = sub.add_parser("integrations", help="统一模型接入目录、预检与矩阵冒烟")
+    integrations_sub = integrations.add_subparsers(dest="integrations_command", required=True)
+    integrations_list = integrations_sub.add_parser("list", help="列出25项接入目标")
+    integrations_list.set_defaults(handler=_integrations_list)
+
+    integrations_preflight = integrations_sub.add_parser(
+        "preflight", help="只读预检配置、锁和本地资产"
+    )
+    integrations_preflight.add_argument(
+        "--id", "--encoder", dest="integration_ids", action="append"
+    )
+    integrations_preflight.add_argument("--family", action="append")
+    integrations_preflight.add_argument("--run-mode", action="append")
+    integrations_preflight.add_argument("--runtime", action="append")
+    integrations_preflight.add_argument("--limit", type=int)
+    integrations_preflight.set_defaults(handler=_integrations_preflight)
+
+    integrations_smoke = integrations_sub.add_parser(
+        "smoke", help="用当前视频运行一个或指定的真实接入目标"
+    )
+    integrations_smoke.add_argument("--video", required=True)
+    integrations_smoke.add_argument("--id", "--encoder", dest="integration_ids", action="append")
+    integrations_smoke.add_argument("--device")
+    integrations_smoke.add_argument("--output-root", default="outputs/encoder-integration")
+    integrations_smoke.add_argument("--limit", type=int, default=1)
+    integrations_smoke.add_argument("--skip-preflight", action="store_true")
+    integrations_smoke.set_defaults(handler=_integrations_smoke)
+
+    integrations_matrix = integrations_sub.add_parser(
+        "matrix", help="生成25项预检矩阵，使用--execute才运行真实前向"
+    )
+    integrations_matrix.add_argument("--video", required=True)
+    integrations_matrix.add_argument("-c", "--config")
+    integrations_matrix.add_argument("--id", "--encoder", dest="integration_ids", action="append")
+    integrations_matrix.add_argument("--family", action="append")
+    integrations_matrix.add_argument("--run-mode", action="append")
+    integrations_matrix.add_argument("--runtime", action="append")
+    integrations_matrix.add_argument("--device")
+    integrations_matrix.add_argument("--output-root", default="outputs/encoder-integration")
+    integrations_matrix.add_argument("--matrix-path")
+    integrations_matrix.add_argument("--limit", type=int)
+    integrations_matrix.add_argument("--execute", action="store_true")
+    integrations_matrix.add_argument("--skip-preflight", action="store_true")
+    integrations_matrix.add_argument("--validate-existing", action="store_true")
+    integrations_matrix.set_defaults(handler=_integrations_matrix)
+
     manifest = sub.add_parser("manifest", help="数据清单导入与校验")
     manifest_sub = manifest.add_subparsers(dest="manifest_command", required=True)
 
@@ -286,6 +332,100 @@ def _encoders_inspect(args: argparse.Namespace) -> int:
             indent=2,
         )
     )
+    return 0
+
+
+def _integrations_list(args: argparse.Namespace) -> int:
+    del args
+    from vadbench.integrations import DEFAULT_INTEGRATION_CATALOG
+
+    payload = []
+    for record in DEFAULT_INTEGRATION_CATALOG.integrations:
+        payload.append(
+            {
+                "id": record.id,
+                "display_name": record.display_name,
+                "family": record.family,
+                "status": record.status,
+                "backend": record.backend,
+                "run_mode": record.run_mode,
+                "feature_stage": record.feature_stage,
+                "runtime": record.environment.runtime,
+                "environment_profile": record.environment.profile,
+                "definition": record.definition,
+                "checkpoint": record.checkpoint.registry_id,
+            }
+        )
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def _integration_filter_args(args: argparse.Namespace) -> dict[str, object]:
+    return {
+        "integration_ids": getattr(args, "integration_ids", None),
+        "families": getattr(args, "family", None),
+        "run_modes": getattr(args, "run_mode", None),
+        "runtimes": getattr(args, "runtime", None),
+        "limit": getattr(args, "limit", None),
+    }
+
+
+def _integrations_preflight(args: argparse.Namespace) -> int:
+    from vadbench.engine.integration_matrix import preflight_integrations
+
+    results = preflight_integrations(
+        project_root=Path.cwd(),
+        **_integration_filter_args(args),
+    )
+    print(json.dumps(results, ensure_ascii=False, indent=2))
+    return 0
+
+
+def _integrations_smoke(args: argparse.Namespace) -> int:
+    from vadbench.engine.integration_matrix import run_integration_matrix
+
+    config: dict[str, object] = {}
+    if args.device:
+        config["encoder"] = {"device": args.device}
+    result = run_integration_matrix(
+        config=config,
+        video_path=args.video,
+        project_root=Path.cwd(),
+        output_root=args.output_root,
+        skip_preflight=args.skip_preflight,
+        write_results=True,
+        **_integration_filter_args(args),
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+def _integrations_matrix(args: argparse.Namespace) -> int:
+    from vadbench.engine.integration_matrix import run_integration_matrix
+
+    config = args.config
+    if config is None:
+        config = {}
+    elif isinstance(config, (str, Path)):
+        config = load_yaml(config)
+    if args.device:
+        config = dict(config)
+        encoder = dict(config.get("encoder", {}))
+        encoder["device"] = args.device
+        config["encoder"] = encoder
+    result = run_integration_matrix(
+        config=config,
+        video_path=args.video,
+        project_root=Path.cwd(),
+        output_root=args.output_root,
+        matrix_path=args.matrix_path,
+        skip_preflight=args.skip_preflight,
+        validate_existing=args.validate_existing,
+        write_results=True,
+        execute=args.execute,
+        **_integration_filter_args(args),
+    )
+    print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 
 

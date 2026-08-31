@@ -1,0 +1,33 @@
+schema_version: 1
+integration: streaming_vlm
+
+source:
+  repository: https://github.com/mit-han-lab/streaming-vlm
+  branch: main
+  default_branch: main
+  commit: a940d8cbfa14eefe651b7f4adeb81825c28cc6c6
+  commit_url: https://github.com/mit-han-lab/streaming-vlm/commit/a940d8cbfa14eefe651b7f4adeb81825c28cc6c6
+  verified_with: github-web
+  verified_on: "2026-08-31"
+
+license:
+  spdx: MIT
+  file: LICENSE
+  url: https://github.com/mit-han-lab/streaming-vlm/blob/a940d8cbfa14eefe651b7f4adeb81825c28cc6c6/LICENSE
+
+entrypoints:
+  loader: streaming_vlm/inference/inference.py:load_model
+  decoder_context: streaming_vlm/inference/inference.py:forward
+  stream: streaming_vlm/inference/inference.py
+
+weights:
+  provider: huggingface
+  model_id: mit-han-lab/StreamingVLM
+  revision: main
+  local_dir: weights/streaming-vlm
+  sha256: {}
+  status: planned
+
+integration_notes:
+  - StreamingVLM 的论文机制包含 decoder KV 状态；本接入只传递状态，不运行 KV 压缩对比。
+  - 当前公开仓库要求额外训练/推理环境，资产缺失时记录 blocked 而不是使用随机模型。

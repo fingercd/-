@@ -55,6 +55,7 @@ EXPECTED_IDS = {
 }
 
 EXPECTED_FIXED_SMOKE_PROFILES = {
+    "c3d": ("c3d-16x112", 16, 2, 112),
     "r2plus1d_18": ("r2plus1d-16x112", 16, 2, 112),
     "mvitv2": ("mvitv2-16x224", 16, 2, 224),
     "i3d": ("i3d-8x256", 8, 8, 256),
@@ -64,6 +65,8 @@ EXPECTED_FIXED_SMOKE_PROFILES = {
     "videomae": ("videomae-16x224", 16, 2, 224),
     "video_swin": ("video-swin-32x224", 32, 2, 224),
 }
+
+EXPECTED_INTEGRATED_IDS = EXPECTED_IDS
 
 
 def _raw_catalog() -> dict[str, Any]:
@@ -87,6 +90,15 @@ def test_catalog_contains_exactly_the_25_planned_targets() -> None:
     assert set(catalog.ids) == EXPECTED_IDS
     assert set(BUILTIN_ENCODER_CONFIGS) == EXPECTED_IDS
     assert set(ENCODER_REGISTRY.names()) == EXPECTED_IDS
+    assert {record.id for record in catalog.integrations if record.status == "integrated"} == (
+        EXPECTED_INTEGRATED_IDS
+    )
+    assert sum(record.status == "planned" for record in catalog.integrations) == 0
+    assert all(
+        record.checkpoint.status == "verified"
+        for record in catalog.integrations
+        if record.id in EXPECTED_INTEGRATED_IDS
+    )
 
     definitions = [record.definition for record in catalog.integrations]
     locks = [record.upstream_lock for record in catalog.integrations]
@@ -222,16 +234,18 @@ def test_existing_integrations_keep_targets_capabilities_and_references() -> Non
     assert hermes_spec.metadata["cache_owner"] == "language_model_decoder"
 
 
-def test_planned_targets_may_reference_future_files_but_definition_load_fails_closed() -> None:
-    planned = [
-        record for record in DEFAULT_INTEGRATION_CATALOG.integrations if record.status == "planned"
+def test_integrated_targets_load_from_definition_and_keep_fail_closed_paths() -> None:
+    integrated = [
+        record
+        for record in DEFAULT_INTEGRATION_CATALOG.integrations
+        if record.status == "integrated"
     ]
-    assert len(planned) == 23
-    assert any(not (PROJECT_ROOT / record.definition).exists() for record in planned)
-    assert any(not (PROJECT_ROOT / record.upstream_lock).exists() for record in planned)
-
-    with pytest.raises(FileNotFoundError, match="catalog status=planned"):
-        load_encoder_definition("r2plus1d_18", project_root=PROJECT_ROOT)
+    assert len(integrated) == 25
+    for record in integrated:
+        definition = load_encoder_definition(record.id, project_root=PROJECT_ROOT)
+        assert definition["adapter"] == record.id
+        assert (PROJECT_ROOT / record.definition).is_file()
+        assert (PROJECT_ROOT / record.upstream_lock).is_file()
 
 
 def test_registration_and_listing_do_not_import_heavy_model_dependencies(monkeypatch) -> None:

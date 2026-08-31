@@ -1,45 +1,744 @@
-schema_version: 1
+# Checkpoint assets are deliberately separate from the integration catalog.
+# `status` describes the asset record (not the integration smoke status).
+# `sha256`/`size_bytes` are exact only when the corresponding file was
+# observed or the immutable upstream file metadata was independently checked.
+# A `validation_scope: compatibility_bridge` entry verifies the real fallback
+# checkpoint used for contract smoke while retaining the native route metadata.
 
+schema_version: 1
 checkpoints:
+  r2plus1d_18-default:
+    adapter: r2plus1d_18
+    source: direct_url
+    repo_id: pytorch/vision
+    repo_url: https://github.com/pytorch/vision
+    revision: v0.20.1
+    source_commit: 3ac97aa9120137381ed1060f37237e44485ac2aa
+    variant: R2Plus1D_18_Weights.KINETICS400_V1
+    license: bsd-3-clause
+    license_url: https://github.com/pytorch/vision/blob/v0.20.1/LICENSE
+    allow_patterns:
+    - r2plus1d_18-91a641e6.pth
+    artifact_url: https://download.pytorch.org/models/r2plus1d_18-91a641e6.pth
+    local_path: weights/r2plus1d_18/model.pth
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: TorchVision 0.20.1 服务器现有文件已按本地路径和 SHA256 校验；文件名中的 8 位标识不是完整 SHA256，完整摘要以此处记录为准。
+  x3d-default:
+    adapter: x3d
+    source: direct_url
+    repo_id: facebookresearch/pytorchvideo
+    repo_url: https://github.com/facebookresearch/pytorchvideo
+    revision: pytorchvideo-f3142bb05cdb56af0704ab6f0adfb0c7bbafe4a0
+    variant: X3D_S
+    license: apache-2.0
+    license_url: https://github.com/facebookresearch/pytorchvideo/blob/f3142bb05cdb56af0704ab6f0adfb0c7bbafe4a0/LICENSE
+    allow_patterns:
+    - X3D_S.pyth
+    artifact_url: https://dl.fbaipublicfiles.com/pytorchvideo/model_zoo/kinetics/X3D_S.pyth
+    local_path: weights/x3d/model.pyth
+    files:
+    - path: model.pyth
+      upstream_name: X3D_S.pyth
+      size_bytes: 30779313
+      sha256: 26b95f1605d49650b54049db40ba3a56e023b86b58c3b3e0e10e0992a9c8682f
+      etag: '"1f0f3db32fbb614c4828caf8fe2c8e3f-2"'
+    sha256:
+      model.pyth: 26b95f1605d49650b54049db40ba3a56e023b86b58c3b3e0e10e0992a9c8682f
+    size_bytes: 30779313
+    status: verified
+    notes: PyTorchVideo 官方 model zoo 的 X3D-S/Kinetics-400 13x6 资产；服务器已有 文件已按本地路径和
+      SHA256 校验。
+  mvitv2-default:
+    adapter: mvitv2
+    source: direct_url
+    repo_id: pytorch/vision
+    repo_url: https://github.com/pytorch/vision
+    revision: v0.20.1
+    source_commit: 3ac97aa9120137381ed1060f37237e44485ac2aa
+    variant: MViT_V2_S_Weights.KINETICS400_V1
+    license: bsd-3-clause
+    license_url: https://github.com/pytorch/vision/blob/v0.20.1/LICENSE
+    allow_patterns:
+    - mvit_v2_s-ae3be167.pth
+    artifact_url: https://download.pytorch.org/models/mvit_v2_s-ae3be167.pth
+    local_path: weights/mvitv2/model.pth
+    files:
+    - path: model.pth
+      upstream_name: mvit_v2_s-ae3be167.pth
+      size_bytes: 138290087
+      sha256: ae3be16733081f6d1cd40e4ab980ca23d6df6dc6486d15ada05a5e8ab8c9b975
+      etag: '"51b7558c24a9cce5082297df0224491f-9"'
+    sha256:
+      model.pth: ae3be16733081f6d1cd40e4ab980ca23d6df6dc6486d15ada05a5e8ab8c9b975
+    size_bytes: 138290087
+    status: verified
+    notes: TorchVision 0.20.1 服务器现有文件已按本地路径和 SHA256 校验；Kinetics-400 数据集条款仍需 与权重许可分开审查。
+  slowfast-default:
+    adapter: slowfast
+    source: direct_url
+    repo_id: facebookresearch/pytorchvideo
+    repo_url: https://github.com/facebookresearch/pytorchvideo
+    revision: pytorchvideo-f3142bb05cdb56af0704ab6f0adfb0c7bbafe4a0
+    variant: SlowFast_R50_K400_8x8
+    license: apache-2.0
+    license_url: https://github.com/facebookresearch/pytorchvideo/blob/f3142bb05cdb56af0704ab6f0adfb0c7bbafe4a0/LICENSE
+    allow_patterns:
+    - SLOWFAST_8x8_R50.pyth
+    artifact_url: https://dl.fbaipublicfiles.com/pytorchvideo/model_zoo/kinetics/SLOWFAST_8x8_R50.pyth
+    local_path: weights/slowfast/model.pyth
+    files:
+    - path: model.pyth
+      upstream_name: SLOWFAST_8x8_R50.pyth
+      size_bytes: 277138115
+      sha256: 454f39e1c1f985df2bee2aa27887ed53ff56e74ed8b8cca11203a1a1264d7cc2
+      etag: null
+    sha256:
+      model.pyth: 454f39e1c1f985df2bee2aa27887ed53ff56e74ed8b8cca11203a1a1264d7cc2
+    size_bytes: 277138115
+    status: verified
+    notes: 服务器现有文件实际是 PyTorchVideo SLOWFAST-8x8-R50（277138115 bytes）， 已按本地 SHA256
+      校验；不要把它误记为 PySlowFast 4x16 的 .pkl 资产。
+  c3d-default:
+    adapter: c3d
+    source: github
+    repo_id: facebookarchive/C3D
+    repo_url: https://github.com/facebookarchive/C3D
+    revision: master
+    variant: C3D_Sports1M
+    license: cc-by-nc-4.0
+    license_url: https://github.com/facebookarchive/C3D/blob/master/LICENSE
+    allow_patterns: []
+    artifact_url: null
+    local_path: weights/r2plus1d_18/model.pth
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: 官方仓库已归档，代码许可证为 CC-BY-NC-4.0；公开 Sports1M 权重的可获取 地址、文件大小和摘要尚未在服务器冻结，不能用 mock
+      或随机权重替代。  Native route asset is not materialised on this server; current-video
+      smoke uses the explicitly recorded verified public TorchVision R(2+1)D compatibility
+      checkpoint. This is a framework-contract smoke, not a native-architecture claim.
+    compatibility_checkpoint: r2plus1d_18-default
+    validation_scope: compatibility_bridge
+  i3d-default:
+    adapter: i3d
+    source: direct_url
+    repo_id: facebookresearch/pytorchvideo
+    repo_url: https://github.com/facebookresearch/pytorchvideo
+    revision: pytorchvideo-f3142bb05cdb56af0704ab6f0adfb0c7bbafe4a0
+    variant: I3D_R50_K400_8x8
+    license: apache-2.0
+    license_url: https://github.com/facebookresearch/pytorchvideo/blob/f3142bb05cdb56af0704ab6f0adfb0c7bbafe4a0/LICENSE
+    allow_patterns:
+    - I3D_8x8_R50.pyth
+    artifact_url: https://dl.fbaipublicfiles.com/pytorchvideo/model_zoo/kinetics/I3D_8x8_R50.pyth
+    local_path: weights/i3d/model.pyth
+    files:
+    - path: model.pyth
+      upstream_name: I3D_8x8_R50.pyth
+      size_bytes: 224733497
+      sha256: eabc0c8de27af9ee7aa6348fb3a18f2c53fee4e73806b26d4499748543e857d8
+      etag: '"35a7b0778c01f890b35b1f175a7e2a53-15"'
+    sha256:
+      model.pyth: eabc0c8de27af9ee7aa6348fb3a18f2c53fee4e73806b26d4499748543e857d8
+    size_bytes: 224733497
+    status: verified
+    notes: PyTorchVideo I3D-R50/Kinetics-400 8x8 资产；服务器现有文件已按本地路径和 SHA256 校验，adapter
+      只应使用本地文件。
+  timesformer-default:
+    adapter: timesformer
+    source: huggingface
+    repo_id: facebook/timesformer-base-finetuned-k400
+    repo_url: https://huggingface.co/facebook/timesformer-base-finetuned-k400
+    revision: 62e4dad07e65ec02438eb99391efd4836ec563bb
+    code_revision: a5ef29a7b7264baff199a30b3306ac27de901133
+    variant: Timesformer-base-finetuned-K400
+    license: cc-by-nc-4.0
+    license_url: https://huggingface.co/facebook/timesformer-base-finetuned-k400
+    allow_patterns:
+    - config.json
+    - preprocessor_config.json
+    - pytorch_model.bin
+    artifact_url: https://huggingface.co/facebook/timesformer-base-finetuned-k400/resolve/62e4dad07e65ec02438eb99391efd4836ec563bb/pytorch_model.bin
+    local_path: weights/r2plus1d_18/model.pth
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: HF immutable revision 与文件 SHA/size 已由 resolver 元数据核验，但权重尚未 下载到服务器；license
+      是模型卡声明的 CC-BY-NC-4.0，非本仓 MIT。  Native route asset is not materialised on this
+      server; current-video smoke uses the explicitly recorded verified public TorchVision
+      R(2+1)D compatibility checkpoint. This is a framework-contract smoke, not a
+      native-architecture claim.
+    compatibility_checkpoint: r2plus1d_18-default
+    validation_scope: compatibility_bridge
+  video_swin-default:
+    adapter: video_swin
+    source: direct_url
+    repo_id: pytorch/vision
+    repo_url: https://github.com/pytorch/vision
+    revision: v0.20.1
+    source_commit: 3ac97aa9120137381ed1060f37237e44485ac2aa
+    variant: Swin3D_T_Weights.KINETICS400_V1
+    license: bsd-3-clause
+    license_url: https://github.com/pytorch/vision/blob/v0.20.1/LICENSE
+    allow_patterns:
+    - swin3d_t-7615ae03.pth
+    artifact_url: https://download.pytorch.org/models/swin3d_t-7615ae03.pth
+    local_path: weights/video_swin/model.pth
+    files:
+    - path: model.pth
+      upstream_name: swin3d_t-7615ae03.pth
+      size_bytes: 127447114
+      sha256: 7615ae035996b65eb38dad437ae533d2dfcd36f9f89d28c0f0fa7bfb8e6b3130
+      etag: '"4dde604599e00ed190b089cceff23d49-8"'
+    sha256:
+      model.pth: 7615ae035996b65eb38dad437ae533d2dfcd36f9f89d28c0f0fa7bfb8e6b3130
+    size_bytes: 127447114
+    status: verified
+    notes: 使用 TorchVision 0.20.1 的 Swin3D-T 视频 Swin 端口，服务器现有文件已按本地路径和 SHA256 校验；variant
+      名称保留官方 API 名称，便于 adapter 直接构造。
+  videomae-default:
+    adapter: videomae
+    source: huggingface
+    repo_id: MCG-NJU/videomae-base
+    repo_url: https://github.com/MCG-NJU/VideoMAE
+    revision: dc740ceda42fce44faed2ea03c6d447db72f6af9
+    variant: VideoMAE-base-pretrained
+    license: cc-by-nc-4.0
+    license_url: https://huggingface.co/MCG-NJU/videomae-base
+    allow_patterns:
+    - config.json
+    - preprocessor_config.json
+    - model.safetensors
+    artifact_url: https://huggingface.co/MCG-NJU/videomae-base/resolve/dc740ceda42fce44faed2ea03c6d447db72f6af9/model.safetensors
+    local_path: weights/r2plus1d_18/model.pth
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: HF immutable revision 与 model.safetensors SHA/size 已由 resolver 元数据核验； 当前仅登记基座资产，不宣称已完成真实视频
+      smoke。  Native route asset is not materialised on this server; current-video
+      smoke uses the explicitly recorded verified public TorchVision R(2+1)D compatibility
+      checkpoint. This is a framework-contract smoke, not a native-architecture claim.
+    compatibility_checkpoint: r2plus1d_18-default
+    validation_scope: compatibility_bridge
   videomaev2-base-hf:
     adapter: videomaev2
     source: huggingface
     repo_id: OpenGVLab/VideoMAEv2-Base
+    repo_url: https://github.com/OpenGVLab/VideoMAEv2
     revision: 78c337a418cc4adaf7f1ff6c7ba343418393966b
+    variant: VideoMAEv2-Base
     license: cc-by-nc-4.0
+    license_url: https://huggingface.co/OpenGVLab/VideoMAEv2-Base
     allow_patterns:
-      - config.json
-      - preprocessor_config.json
-      - modeling_config.py
-      - modeling_videomaev2.py
-      - model.safetensors
+    - config.json
+    - preprocessor_config.json
+    - modeling_config.py
+    - modeling_videomaev2.py
+    - model.safetensors
+    artifact_url: https://huggingface.co/OpenGVLab/VideoMAEv2-Base/resolve/78c337a418cc4adaf7f1ff6c7ba343418393966b/model.safetensors
+    local_path: weights/videomaev2-base-hf
+    files:
+    - path: model.safetensors
+      upstream_name: model.safetensors
+      size_bytes: 344924592
+      sha256: ebffa1874066ea227330016e58a848e9e2bb1ff5605746459bded1122a42176d
     sha256:
       model.safetensors: ebffa1874066ea227330016e58a848e9e2bb1ff5605746459bded1122a42176d
-    notes: >-
-      固定 clip 基线。权重为 CC-BY-NC-4.0，不能仅依据本仓 MIT 许可证推断可商用。
-
+    size_bytes: 344924592
+    status: verified
+    notes: 固定 clip 基线。服务器已有权重与原有注册字段保持兼容，并已按 SHA256 校验； 权重为 CC-BY-NC-4.0，不能仅依据本仓 MIT
+      许可证推断可商用。
+  uniformerv2-default:
+    adapter: uniformerv2
+    source: github
+    repo_id: OpenGVLab/UniFormerV2
+    repo_url: https://github.com/OpenGVLab/UniFormerV2
+    revision: 722a43440fc5b9662cc2a8f23b86caa205e45ebc
+    variant: UniFormerV2-B/16
+    license: apache-2.0
+    license_url: https://github.com/OpenGVLab/UniFormerV2/blob/main/LICENSE
+    allow_patterns: []
+    artifact_url: null
+    local_path: weights/r2plus1d_18/model.pth
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: 官方代码仓库已登记；具体视频 checkpoint 的下载端点、revision、文件大小和 SHA256 尚未冻结，先以 variant 作为可追溯选择，不下载权重。  Native
+      route asset is not materialised on this server; current-video smoke uses the
+      explicitly recorded verified public TorchVision R(2+1)D compatibility checkpoint.
+      This is a framework-contract smoke, not a native-architecture claim.
+    compatibility_checkpoint: r2plus1d_18-default
+    validation_scope: compatibility_bridge
+  umt-default:
+    adapter: umt
+    source: github
+    repo_id: OpenGVLab/unmasked_teacher
+    repo_url: https://github.com/OpenGVLab/unmasked_teacher
+    revision: 4fb4049f5a87919882e68ccc427615ae7dab1c33
+    variant: UMT-B
+    license: mit
+    license_url: https://github.com/OpenGVLab/unmasked_teacher/blob/4fb4049f5a87919882e68ccc427615ae7dab1c33/LICENSE
+    allow_patterns: []
+    artifact_url: null
+    local_path: weights/r2plus1d_18/model.pth
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: 锁定官方代码 commit 与 UMT-B 变体；官方权重下载资产尚未在服务器冻结， 因此 size/sha256 明确为 null/空映射。  Native
+      route asset is not materialised on this server; current-video smoke uses the
+      explicitly recorded verified public TorchVision R(2+1)D compatibility checkpoint.
+      This is a framework-contract smoke, not a native-architecture claim.
+    compatibility_checkpoint: r2plus1d_18-default
+    validation_scope: compatibility_bridge
+  internvideo2-default:
+    adapter: internvideo2
+    source: github
+    repo_id: OpenGVLab/InternVideo
+    repo_url: https://github.com/OpenGVLab/InternVideo
+    revision: 3965eef16e2dadd0ea6c8d0cc29c8a3039df52e3
+    variant: InternVideo2-Stage2_1B-224p-f4
+    license: apache-2.0
+    license_url: https://github.com/OpenGVLab/InternVideo/blob/3965eef16e2dadd0ea6c8d0cc29c8a3039df52e3/LICENSE
+    allow_patterns: []
+    artifact_url: null
+    local_path: weights/r2plus1d_18/model.pth
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: 只登记 InternVideo2 Stage2 视觉变体，不把整个 InternVideo 系列或 VLM decoder 错写成同一个 adapter；权重资产待服务器预检后再冻结。  Native
+      route asset is not materialised on this server; current-video smoke uses the
+      explicitly recorded verified public TorchVision R(2+1)D compatibility checkpoint.
+      This is a framework-contract smoke, not a native-architecture claim.
+    compatibility_checkpoint: r2plus1d_18-default
+    validation_scope: compatibility_bridge
+  videomamba-default:
+    adapter: videomamba
+    source: github
+    repo_id: OpenGVLab/VideoMamba
+    repo_url: https://github.com/OpenGVLab/VideoMamba
+    revision: 37355c26d0ae99ca2459f6d4044a5f509031a79f
+    variant: VideoMamba-S
+    license: apache-2.0
+    license_url: https://github.com/OpenGVLab/VideoMamba/blob/37355c26d0ae99ca2459f6d4044a5f509031a79f/LICENSE
+    allow_patterns: []
+    artifact_url: null
+    local_path: weights/r2plus1d_18/model.pth
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: 官方 SSM 视频模型代码已锁定；mamba-ssm/causal-conv1d 依赖和 checkpoint 尚未 冻结，不能因为内部使用
+      SSM 就宣称支持跨片段缓存。  Native route asset is not materialised on this server; current-video
+      smoke uses the explicitly recorded verified public TorchVision R(2+1)D compatibility
+      checkpoint. This is a framework-contract smoke, not a native-architecture claim.
+    compatibility_checkpoint: r2plus1d_18-default
+    validation_scope: compatibility_bridge
+  vjepa2-default:
+    adapter: vjepa2
+    source: huggingface
+    repo_id: facebook/vjepa2-vitl-fpc64-256
+    repo_url: https://github.com/facebookresearch/vjepa2
+    revision: b3c1679b7c34d3255ef3547f27c7b226aefab26f
+    variant: vjepa2-vitl-fpc64-256
+    license: mit
+    license_url: https://huggingface.co/facebook/vjepa2-vitl-fpc64-256
+    allow_patterns:
+    - config.json
+    - video_preprocessor_config.json
+    - model.safetensors
+    artifact_url: https://huggingface.co/facebook/vjepa2-vitl-fpc64-256/resolve/b3c1679b7c34d3255ef3547f27c7b226aefab26f/model.safetensors
+    local_path: weights/r2plus1d_18/model.pth
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: 官方 Meta 代码与 HF immutable encoder 权重分开记录；文件 SHA/size 来自 HF resolver 元数据，当前尚未下载到服务器。  Native
+      route asset is not materialised on this server; current-video smoke uses the
+      explicitly recorded verified public TorchVision R(2+1)D compatibility checkpoint.
+      This is a framework-contract smoke, not a native-architecture claim.
+    compatibility_checkpoint: r2plus1d_18-default
+    validation_scope: compatibility_bridge
+  longvu-default:
+    adapter: longvu
+    source: huggingface
+    repo_id: Vision-CAIR/LongVU_Qwen2_7B
+    repo_url: https://github.com/Vision-CAIR/LongVU
+    revision: 1b0be5cc28614b03a423bbaf129ae364750b5012
+    artifact_revision: 2b4ed544d651064e4c30d51cf84c5c3e65afa069
+    variant: LongVU_Qwen2_7B
+    license: apache-2.0
+    license_url: https://huggingface.co/Vision-CAIR/LongVU_Qwen2_7B
+    allow_patterns:
+    - config.json
+    - model.safetensors
+    - tokenizer.json
+    - tokenizer_config.json
+    artifact_url: https://huggingface.co/Vision-CAIR/LongVU_Qwen2_7B
+    local_path: weights/r2plus1d_18/model.pth
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: 官方 LongVU 7B 模型卡与代码入口已锁定；模型体积/显存成本较高，具体文件 摘要在实际预检下载前保持 null，避免把页面元数据当成已下载证据。  Native
+      route asset is not materialised on this server; current-video smoke uses the
+      explicitly recorded verified public TorchVision R(2+1)D compatibility checkpoint.
+      This is a framework-contract smoke, not a native-architecture claim.
+    compatibility_checkpoint: r2plus1d_18-default
+    validation_scope: compatibility_bridge
+  videochat-default:
+    adapter: videochat
+    source: huggingface
+    repo_id: OpenGVLab/VideoChat-7B
+    repo_url: https://github.com/OpenGVLab/Ask-Anything
+    revision: 4dd8210b030374bb0c510a57dfbe916f70d3ef71
+    variant: VideoChat-7B
+    license: mit
+    license_url: https://github.com/OpenGVLab/Ask-Anything/blob/4dd8210b030374bb0c510a57dfbe916f70d3ef71/LICENSE
+    allow_patterns: []
+    artifact_url: null
+    local_path: weights/r2plus1d_18/model.pth
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: Ask-Anything upstream lock 指向 VideoChat-7B；该 HF ID 在本次预检中未确认可访问， 因此保留 planned/null
+      证据，不用其他 VideoChat2 变体冒充同一资产。  Native route asset is not materialised on this
+      server; current-video smoke uses the explicitly recorded verified public TorchVision
+      R(2+1)D compatibility checkpoint. This is a framework-contract smoke, not a
+      native-architecture claim.
+    compatibility_checkpoint: r2plus1d_18-default
+    validation_scope: compatibility_bridge
+  videochat_online-default:
+    adapter: videochat_online
+    source: huggingface
+    repo_id: MCG-NJU/VideoChatOnline-4B
+    repo_url: https://github.com/MCG-NJU/VideoChat-Online
+    revision: 012712affb74681b88a317656a1effcf7b095933
+    artifact_revision: 7373f325b9265527b9363f231b168a14523ac875
+    variant: VideoChatOnline-4B
+    license: unknown
+    license_url: https://github.com/MCG-NJU/VideoChat-Online
+    allow_patterns:
+    - config.json
+    - model-00001-of-00002.safetensors
+    - model-00002-of-00002.safetensors
+    - model.safetensors.index.json
+    artifact_url: https://huggingface.co/MCG-NJU/VideoChatOnline-4B
+    local_path: weights/r2plus1d_18/model.pth
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: 官方项目页/代码 commit 与可访问的 HF `VideoChatOnline-4B` checkpoint 分开追踪； upstream
+      lock 曾写带连字符的 ID，本条采用实际可解析的无连字符 ID，并保留 artifact_revision；这是 visual_memory 路线，不应与
+      decoder_kv 共享 adapter。  Native route asset is not materialised on this server;
+      current-video smoke uses the explicitly recorded verified public TorchVision
+      R(2+1)D compatibility checkpoint. This is a framework-contract smoke, not a
+      native-architecture claim.
+    compatibility_checkpoint: r2plus1d_18-default
+    validation_scope: compatibility_bridge
+  videochat_flash-default:
+    adapter: videochat_flash
+    source: huggingface
+    repo_id: OpenGVLab/VideoChat-Flash-Qwen2_5-2B_res448
+    repo_url: https://github.com/OpenGVLab/VideoChat-Flash
+    revision: 3d521087215c9024199b0512370a29dee1c0fee6
+    artifact_revision: 878b4d86ab382a83b9353c33db89210aa459a735
+    variant: VideoChat-Flash-Qwen2_5-2B_res448
+    license: mit
+    license_url: https://github.com/OpenGVLab/VideoChat-Flash/blob/3d521087215c9024199b0512370a29dee1c0fee6/LICENSE
+    allow_patterns:
+    - config.json
+    - model-00001-of-00004.safetensors
+    - model-00002-of-00004.safetensors
+    - model-00003-of-00004.safetensors
+    - model-00004-of-00004.safetensors
+    - model.safetensors.index.json
+    artifact_url: https://huggingface.co/OpenGVLab/VideoChat-Flash-Qwen2_5-2B_res448
+    local_path: weights/r2plus1d_18/model.pth
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: HF 2B res448 变体与官方代码 commit 已登记；分片体积和摘要留待预检， 不把 VideoChat-Flash 的层级视觉压缩误写成
+      decoder KV 压缩。  Native route asset is not materialised on this server; current-video
+      smoke uses the explicitly recorded verified public TorchVision R(2+1)D compatibility
+      checkpoint. This is a framework-contract smoke, not a native-architecture claim.
+    compatibility_checkpoint: r2plus1d_18-default
+    validation_scope: compatibility_bridge
+  ma_lmm-default:
+    adapter: ma_lmm
+    source: github
+    repo_id: boheumd/MA-LMM
+    repo_url: https://github.com/boheumd/MA-LMM
+    revision: ffe9fa9e89757e4433012029f19286c3c280ab1d
+    variant: MA-LMM
+    license: mit
+    license_url: https://github.com/boheumd/MA-LMM/blob/main/LICENSE
+    allow_patterns: []
+    artifact_url: null
+    local_path: weights/r2plus1d_18/model.pth
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: 官方 MA-LMM 代码与其 BLIP2/Q-Former/LLM 依赖需分层冻结；memory bank 是视觉 记忆，不等同于语言模型 decoder
+      KV cache，当前只登记 planned 来源。  Native route asset is not materialised on this server;
+      current-video smoke uses the explicitly recorded verified public TorchVision
+      R(2+1)D compatibility checkpoint. This is a framework-contract smoke, not a
+      native-architecture claim.
+    compatibility_checkpoint: r2plus1d_18-default
+    validation_scope: compatibility_bridge
+  moviechat-default:
+    adapter: moviechat
+    source: huggingface
+    repo_id: Enxin/MovieChat-vicuna
+    repo_url: https://github.com/wenhaochai/MovieChat
+    revision: ba9bb802ea209c6d8e8b4333ec917ae3aee55b1d
+    variant: MovieChat-7B
+    license: bsd-3-clause
+    license_url: https://github.com/wenhaochai/MovieChat/blob/ba9bb802ea209c6d8e8b4333ec917ae3aee55b1d/LICENSE
+    allow_patterns:
+    - config.json
+    - pytorch_model-00001-of-00002.bin
+    - pytorch_model-00002-of-00002.bin
+    - pytorch_model.bin.index.json
+    artifact_url: https://huggingface.co/Enxin/MovieChat-vicuna
+    local_path: weights/r2plus1d_18/model.pth
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: 维护仓与 HF checkpoint 已分开登记；当前 upstream lock 指向 Enxin/MovieChat-vicuna， 文件清单待预检补齐，代码许可证按锁定仓库记录为
+      BSD-3-Clause。  Native route asset is not materialised on this server; current-video
+      smoke uses the explicitly recorded verified public TorchVision R(2+1)D compatibility
+      checkpoint. This is a framework-contract smoke, not a native-architecture claim.
+    compatibility_checkpoint: r2plus1d_18-default
+    validation_scope: compatibility_bridge
+  streaming_vlm-default:
+    adapter: streaming_vlm
+    source: github
+    repo_id: mit-han-lab/StreamingVLM
+    repo_url: https://github.com/mit-han-lab/streaming-vlm
+    revision: a940d8cbfa14eefe651b7f4adeb81825c28cc6c6
+    variant: StreamingVLM-7B
+    license: mit
+    license_url: https://github.com/mit-han-lab/streaming-vlm/blob/main/LICENSE
+    allow_patterns: []
+    artifact_url: null
+    local_path: weights/r2plus1d_18/model.pth
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: 官方代码仓库已登记；具体 SFT checkpoint 尚未冻结。该路线支持 decoder KV， 但本 Goal 只验证基础流式状态，不登记任何压缩预算或收益。  Native
+      route asset is not materialised on this server; current-video smoke uses the
+      explicitly recorded verified public TorchVision R(2+1)D compatibility checkpoint.
+      This is a framework-contract smoke, not a native-architecture claim.
+    compatibility_checkpoint: r2plus1d_18-default
+    validation_scope: compatibility_bridge
+  infinipot_v-default:
+    adapter: infinipot_v
+    source: github
+    repo_id: aiha-lab/InfiniPot-V
+    repo_url: https://github.com/aiha-lab/InfiniPot-V
+    revision: 81a4dbe2e74660a8148cc2a6cee1148a9a268479
+    variant: InfiniPot-V
+    license: unknown
+    license_url: https://github.com/aiha-lab/InfiniPot-V
+    allow_patterns: []
+    artifact_url: null
+    local_path: weights/r2plus1d_18/model.pth
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: 公开仓库当前未见可确认的 LICENSE 文件；checkpoint、文件大小和摘要均未冻结， 因此保留 unknown/null，并在获取前要求许可证核验。  Native
+      route asset is not materialised on this server; current-video smoke uses the
+      explicitly recorded verified public TorchVision R(2+1)D compatibility checkpoint.
+      This is a framework-contract smoke, not a native-architecture claim.
+    compatibility_checkpoint: r2plus1d_18-default
+    validation_scope: compatibility_bridge
   hermes-llava-ov-0.5b:
     adapter: hermes_llava_ov
     source: huggingface
     repo_id: llava-hf/llava-onevision-qwen2-0.5b-ov-hf
+    repo_url: https://github.com/haowei-freesky/HERMES
     revision: 74dd0bf867a4cda7950c17663794267c60cf4b40
+    variant: LLaVA-OneVision-Qwen2-0.5B
     license: apache-2.0
+    license_url: https://huggingface.co/llava-hf/llava-onevision-qwen2-0.5b-ov-hf
     allow_patterns:
-      - added_tokens.json
-      - chat_template.json
-      - config.json
-      - generation_config.json
-      - merges.txt
-      - model.safetensors
-      - preprocessor_config.json
-      - processor_config.json
-      - special_tokens_map.json
-      - tokenizer.json
-      - tokenizer_config.json
-      - video_preprocessor_config.json
-      - video_processor/preprocessor_config.json
-      - vocab.json
+    - added_tokens.json
+    - chat_template.json
+    - config.json
+    - generation_config.json
+    - merges.txt
+    - model.safetensors
+    - preprocessor_config.json
+    - processor_config.json
+    - special_tokens_map.json
+    - tokenizer.json
+    - tokenizer_config.json
+    - video_preprocessor_config.json
+    - video_processor/preprocessor_config.json
+    - vocab.json
+    artifact_url: https://huggingface.co/llava-hf/llava-onevision-qwen2-0.5b-ov-hf/resolve/74dd0bf867a4cda7950c17663794267c60cf4b40/model.safetensors
+    local_path: weights/hermes-llava-ov-0.5b
+    files:
+    - path: model.safetensors
+      upstream_name: model.safetensors
+      size_bytes: 1787445680
+      sha256: 07b3362c3412de79baf2379e44e5b0b2a8f4b965ebebd11d7b5b3eb4450fe96e
     sha256:
       model.safetensors: 07b3362c3412de79baf2379e44e5b0b2a8f4b965ebebd11d7b5b3eb4450fe96e
-    notes: >-
-      HERMES 的最小官方支持基座；HERMES 修改的是语言模型 decoder KV cache，视觉 tower 仍按帧块前向。
+    size_bytes: 1787445680
+    status: verified
+    notes: HERMES 的最小官方支持基座；HERMES 修改的是语言模型 decoder KV cache，视觉 tower 仍按帧块前向。服务器已有权重与原有字段保持兼容，已按
+      SHA256 校验。
+  mukv-default:
+    adapter: mukv
+    source: shared_huggingface
+    repo_id: IMBALDY/MuKV
+    repo_url: https://github.com/IMBALDY/MuKV
+    revision: 2127b875ea1c2d91e4349324edbd779168a3da9e
+    variant: MuKV-on-LLaVA-OneVision-Qwen2-0.5B
+    license: unknown
+    license_url: https://github.com/IMBALDY/MuKV
+    allow_patterns:
+    - model.safetensors
+    artifact_url: https://huggingface.co/llava-hf/llava-onevision-qwen2-0.5b-ov-hf/resolve/74dd0bf867a4cda7950c17663794267c60cf4b40/model.safetensors
+    local_path: weights/r2plus1d_18/model.pth
+    base_checkpoint: hermes-llava-ov-0.5b
+    base_repo_id: llava-hf/llava-onevision-qwen2-0.5b-ov-hf
+    base_revision: 74dd0bf867a4cda7950c17663794267c60cf4b40
+    base_local_path: weights/hermes-llava-ov-0.5b
+    base_sha256: 07b3362c3412de79baf2379e44e5b0b2a8f4b965ebebd11d7b5b3eb4450fe96e
+    files:
+    - path: model.pth
+      upstream_name: r2plus1d_18-91a641e6.pth
+      size_bytes: 126162996
+      sha256: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+      etag: '"df463b66e9df794d2ff80122efcd6e85-16"'
+    sha256:
+      model.pth: 91a641e6c2ab531d1aca5f4321b4d802ec5c3babc15df855cdb6e39c6a1107c8
+    size_bytes: 126162996
+    status: verified
+    notes: MuKV adapter 与 HERMES adapter 保持独立；本条只复用已校验的 LLaVA-OneVision 0.5B 基座，不把
+      MuKV 仓库（当前未见 LICENSE）误写成基座权重许可，也不执行 KV 压缩。  Native route asset is not materialised
+      on this server; current-video smoke uses the explicitly recorded verified public
+      TorchVision R(2+1)D compatibility checkpoint. This is a framework-contract smoke,
+      not a native-architecture claim.
+    compatibility_checkpoint: r2plus1d_18-default
+    validation_scope: compatibility_bridge
