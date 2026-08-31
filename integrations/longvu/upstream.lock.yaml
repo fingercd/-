@@ -23,10 +23,12 @@ entrypoints:
 weights:
   provider: huggingface
   model_id: Vision-CAIR/LongVU_Qwen2_7B
-  revision: main
+  revision: 2b4ed544d651064e4c30d51cf84c5c3e65afa069
   local_dir: weights/longvu
-  sha256: {}
-  status: planned
+  sha256:
+    model.safetensors: e846f373072ab8e42ee7963e21514d543696ee2859c30570bb1b05a88d94f3ca
+  size_bytes: 15343381968
+  status: verified
 
 integration_notes:
   - LongVU 是视频 VLM；本 adapter 导出 projected_visual 表征，而不是生成文本。

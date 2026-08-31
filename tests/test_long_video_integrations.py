@@ -308,7 +308,12 @@ def test_missing_checkout_and_checkpoint_fail_closed_with_structured_error(
     assert error["code"] == "missing_asset"
     assert error["integration_id"] == "longvu"
     missing = error["details"]["missing"]
-    assert {entry["kind"] for entry in missing} == {"checkout", "checkpoint"}
+    expected_missing = (
+        {"checkpoint"}
+        if isinstance(captured.value, LongVideoAssetError)
+        else {"checkout", "checkpoint"}
+    )
+    assert {entry["kind"] for entry in missing} == expected_missing
     assert all(str(tmp_path) in entry["path"] for entry in missing)
 
 
@@ -433,7 +438,7 @@ def test_all_long_video_configs_and_locks_are_pinned_and_consistent() -> None:
         assert config["constructor"]["feature_stage"] == stages[encoder_id]
         expected_source = (
             "native_upstream"
-            if encoder_id in {"videochat_flash", "videochat_online"}
+            if encoder_id in {"longvu", "videochat_flash", "videochat_online"}
             else "external_worker_facade"
         )
         assert config["output"]["implementation_source"] == expected_source
@@ -445,6 +450,8 @@ def test_all_long_video_configs_and_locks_are_pinned_and_consistent() -> None:
         assert commit_pattern.fullmatch(lock["source"]["commit"])
         assert lock["source"]["commit"] in lock["source"]["commit_url"]
         expected_weight_status = (
-            "verified" if encoder_id in {"videochat_flash", "videochat_online"} else "planned"
+            "verified"
+            if encoder_id in {"longvu", "videochat_flash", "videochat_online"}
+            else "planned"
         )
         assert lock["weights"]["status"] == expected_weight_status

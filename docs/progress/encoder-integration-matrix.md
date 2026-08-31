@@ -13,8 +13,8 @@
 
 | 原生状态 | 数量 |
 |---|---:|
-| `smoke_pass` | 13 |
-| `planned` | 11 |
+| `smoke_pass` | 14 |
+| `planned` | 10 |
 | `failed` | 0 |
 | `blocked` | 1（VideoChat-Online 无 LICENSE 文件） |
 
@@ -37,7 +37,7 @@
 | 13 | `internvideo2` | `planned` | 下载 Stage2 1B 224p-f4，构造真实 vision encoder |
 | 14 | `videomamba` | `smoke_pass` | 官方 Tiny K400 16-frame checkpoint + pinned checkout；输出 `[1,1,192]`；CPU reference selective scan |
 | 15 | `vjepa2` | `smoke_pass` | Meta `facebook/vjepa2-vitl-fpc64-256`，输出 `[1,8192,1024]`；当前视频真实前向通过 |
-| 16 | `longvu` | `planned` | 下载官方视频 checkpoint；40 GB GPU 资源预检；导出 projected visual |
+| 16 | `longvu` | `smoke_pass` | 官方 Qwen2 7B + SigLIP SO400M + DINOv2-Giant + SVA connector；输出 `[1,144,3584]` |
 | 17 | `videochat` | `planned` | 核验 Ask-Anything 官方可下载 checkpoint；仅 demo 则 blocked |
 | 18 | `videochat_online` | `blocked` | 原生两 chunk 已通过（`[1,304,3072]` → `[1,608,3072]`）；官方仓库无 LICENSE 文件，许可审计未过 |
 | 19 | `videochat_flash` | `smoke_pass` | 官方 2B res448 snapshot；只加载视觉塔/projector，关闭 `mm_llm_compress`；输出 `[1,64,1536]` |

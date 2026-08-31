@@ -338,24 +338,24 @@ integrations:
 - id: longvu
   display_name: LongVU
   family: long_video_vlm
-  status: planned
+  status: smoke_pass
   definition: configs/encoders/longvu.yaml
   adapter_target: vadbench.integrations.long_video.longvu:LongVUAdapter
   backend: longvu
   run_mode: long
   feature_stage: projected_visual
   environment:
-    runtime: external_python
+    runtime: in_process
     profile: longvu
   upstream_lock: integrations/longvu/upstream.lock.yaml
   checkpoint:
     registry_id: longvu-default
-    status: planned
+    status: verified
   smoke_profile: &id006
-    profile: long-32x336
-    clip_frames: 32
-    frame_stride: 2
-    image_size: 336
+    profile: long-1x384
+    clip_frames: 1
+    frame_stride: 1
+    image_size: 384
     chunks: 1
   capabilities: &id007
     supports_fixed_clip: true

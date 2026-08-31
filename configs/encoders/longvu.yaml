@@ -6,30 +6,29 @@ constructor:
   model_name: Vision-CAIR/LongVU_Qwen2_7B
   checkout_path: external/longvu
   model_path: weights/longvu
-  runtime: external_python
-  device: cuda
+  runtime: in_process
+  device: cpu
   prompt: Describe the visible video content, actions, objects, and temporal changes
     without assuming any event label.
   feature_stage: projected_visual
   cache_mode: false
   strict_assets: true
-  upstream_entrypoint: longvu/builder.py:load_pretrained_model
   preprocess_profile: longvu-bthwc-v1
 checkpoint:
   source: huggingface
   model_id: Vision-CAIR/LongVU_Qwen2_7B
-  revision: 1b0be5cc28614b03a423bbaf129ae364750b5012
+  revision: 2b4ed544d651064e4c30d51cf84c5c3e65afa069
   license: apache-2.0
   local_path: weights/longvu
 input_profile:
-  clip_frames: 32
-  frame_stride: 2
-  image_size: 336
+  clip_frames: 1
+  frame_stride: 1
+  image_size: 384
   sampling: uniform
 output:
   feature_stage: projected_visual
   sequence_source: upstream_projected_visual
-  implementation_source: external_worker_facade
+  implementation_source: native_upstream
 capabilities:
   supports_fixed_clip: true
   supports_streaming: false

@@ -388,29 +388,27 @@ checkpoints:
     source: huggingface
     repo_id: Vision-CAIR/LongVU_Qwen2_7B
     repo_url: https://github.com/Vision-CAIR/LongVU
-    revision: 1b0be5cc28614b03a423bbaf129ae364750b5012
-    artifact_revision: 2b4ed544d651064e4c30d51cf84c5c3e65afa069
+    revision: 2b4ed544d651064e4c30d51cf84c5c3e65afa069
     variant: LongVU_Qwen2_7B
     license: apache-2.0
     license_url: https://huggingface.co/Vision-CAIR/LongVU_Qwen2_7B
     allow_patterns:
     - config.json
     - model.safetensors
-    - tokenizer.json
-    - tokenizer_config.json
     artifact_url: https://huggingface.co/Vision-CAIR/LongVU_Qwen2_7B
     local_path: weights/longvu
     files:
-    - path: null
-      upstream_name: null
-      size_bytes: null
-      sha256: null
-    sha256: {}
-    size_bytes: null
-    status: planned
-    notes: 官方 LongVU 7B 模型卡与代码入口已锁定；模型体积/显存成本较高，具体文件 摘要在实际预检下载前保持 null，避免把页面元数据当成已下载证据。
-      Native checkpoint is not yet materialised on the server; no substitute model
-      is accepted for native smoke.
+    - path: model.safetensors
+      upstream_name: model.safetensors
+      size_bytes: 15343381968
+      sha256: e846f373072ab8e42ee7963e21514d543696ee2859c30570bb1b05a88d94f3ca
+    sha256:
+      model.safetensors: e846f373072ab8e42ee7963e21514d543696ee2859c30570bb1b05a88d94f3ca
+    size_bytes: 15343381968
+    status: verified
+    notes: 官方 LongVU Qwen2 7B checkpoint、SigLIP SO400M（SHA256 ea2abad2b7f8a9c1aa5e49a244d5d57ffa71c56f720c94bc5d240ef4d6e1d94a）与
+      DINOv2-Giant（SHA256 917d3c470db999d32a312f8542149be91c7cbac61ee8fb4b67ae3d82b79ce21f）均已同步；原生 adapter 按官方 SVA
+      connector 导出 projected_visual，不用其他模型替代。
   videochat-default:
     adapter: videochat
     source: huggingface
