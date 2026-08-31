@@ -233,10 +233,9 @@ checkpoints:
     sha256:
       model.safetensors: bc053ca2840a038b1068269a4eec06ca569689e9a1ed9376a5b2b8a111be5290
     size_bytes: 376873760
-    status: planned
-    notes: HF immutable revision 与 model.safetensors SHA/size 已由 resolver 元数据核验； 当前仅登记基座资产，不宣称已完成真实视频
-      smoke。 Native checkpoint is not yet materialised on the server; no substitute
-      model is accepted for native smoke.
+    status: verified
+    notes: VideoMAE base checkpoint 已由 node2 hf-mirror 下载并按 immutable revision 与 SHA256
+      校验；许可证为 CC-BY-NC-4.0。
   videomaev2-base-hf:
     adapter: videomaev2
     source: huggingface

@@ -189,7 +189,7 @@ integrations:
 - id: videomae
   display_name: VideoMAE
   family: fixed_clip
-  status: planned
+  status: integrated
   definition: configs/encoders/videomae.yaml
   adapter_target: vadbench.integrations.transformers_video:TransformersVideoAdapter
   backend: transformers-video
@@ -199,7 +199,7 @@ integrations:
   upstream_lock: integrations/videomae/upstream.lock.yaml
   checkpoint:
     registry_id: videomae-default
-    status: planned
+    status: verified
   smoke_profile:
     profile: videomae-16x224
     clip_frames: 16
