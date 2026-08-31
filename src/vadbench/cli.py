@@ -32,6 +32,7 @@ from vadbench.data.video import iter_fixed_segment_batches, iter_streaming_chunk
 from vadbench.doctor import diagnostics_json
 from vadbench.engine.evaluate import evaluate_ucf_prediction_records
 from vadbench.engine.extract import FeatureExtractionEngine
+from vadbench.engine.predict import predict_feature_head
 from vadbench.engine.runner import train_feature_head
 from vadbench.features import FeatureStore, atomic_write_json
 from vadbench.orchestration import (
@@ -161,6 +162,20 @@ def _parser() -> argparse.ArgumentParser:
     train.add_argument("--max-steps", type=int)
     train.add_argument("--device")
     train.set_defaults(handler=_train)
+
+    predict = sub.add_parser("predict", help="从冻结特征和已验证 checkpoint 生成标准预测")
+    predict.add_argument("-c", "--config", required=True)
+    predict.add_argument("--features", required=True)
+    predict.add_argument("--checkpoint", required=True)
+    predict.add_argument("--manifest")
+    predict.add_argument("--output")
+    predict.add_argument("--device")
+    predict.add_argument(
+        "--allow-incomplete-coverage",
+        action="store_true",
+        help="允许非完整帧覆盖；正式 UCF 评测不得启用",
+    )
+    predict.set_defaults(handler=_predict)
 
     smoke = sub.add_parser("smoke", help="用真实权重对一个视频执行 encoder 冒烟")
     smoke.add_argument("-c", "--config", required=True)
@@ -542,6 +557,42 @@ def _train(args: argparse.Namespace) -> int:
         device=args.device,
     )
     print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
+    return 0
+
+
+def _predict(args: argparse.Namespace) -> int:
+    config = load_experiment(args.config)
+    manifest_path = args.manifest or config["dataset"]["test_manifest"]
+    output = Path(
+        args.output
+        or (
+            Path(config["output"]["root"])
+            / config["output"]["run_name"]
+            / "predictions"
+            / "predictions.jsonl"
+        )
+    )
+    records = predict_feature_head(
+        config,
+        args.features,
+        manifest_path,
+        args.checkpoint,
+        output,
+        device=args.device,
+        strict_coverage=not args.allow_incomplete_coverage,
+    )
+    print(
+        json.dumps(
+            {
+                "output": str(output.resolve()),
+                "prediction_records": len(records),
+                "videos": len({item.video_id for item in records}),
+                "strict_coverage": not args.allow_incomplete_coverage,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     return 0
 
 
