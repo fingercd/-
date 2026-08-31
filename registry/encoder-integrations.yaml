@@ -101,7 +101,7 @@ integrations:
 - id: c3d
   display_name: C3D
   family: fixed_clip
-  status: smoke_pass
+  status: planned
   definition: configs/encoders/c3d.yaml
   adapter_target: vadbench.integrations.legacy:LegacyVideoAdapter
   backend: legacy
@@ -113,7 +113,7 @@ integrations:
   upstream_lock: integrations/c3d/upstream.lock.yaml
   checkpoint:
     registry_id: c3d-default
-    status: verified
+    status: planned
   smoke_profile:
     profile: c3d-16x112
     clip_frames: 16
@@ -145,7 +145,7 @@ integrations:
 - id: timesformer
   display_name: TimeSformer
   family: fixed_clip
-  status: smoke_pass
+  status: planned
   definition: configs/encoders/timesformer.yaml
   adapter_target: vadbench.integrations.transformers_video:TransformersVideoAdapter
   backend: transformers-video
@@ -157,7 +157,7 @@ integrations:
   upstream_lock: integrations/timesformer/upstream.lock.yaml
   checkpoint:
     registry_id: timesformer-default
-    status: verified
+    status: planned
   smoke_profile:
     profile: timesformer-8x224
     clip_frames: 8
@@ -189,7 +189,7 @@ integrations:
 - id: videomae
   display_name: VideoMAE
   family: fixed_clip
-  status: smoke_pass
+  status: planned
   definition: configs/encoders/videomae.yaml
   adapter_target: vadbench.integrations.transformers_video:TransformersVideoAdapter
   backend: transformers-video
@@ -199,7 +199,7 @@ integrations:
   upstream_lock: integrations/videomae/upstream.lock.yaml
   checkpoint:
     registry_id: videomae-default
-    status: verified
+    status: planned
   smoke_profile:
     profile: videomae-16x224
     clip_frames: 16
@@ -243,7 +243,7 @@ integrations:
 - id: uniformerv2
   display_name: UniFormerV2
   family: fixed_clip
-  status: smoke_pass
+  status: planned
   definition: configs/encoders/uniformerv2.yaml
   adapter_target: vadbench.integrations.foundation.uniformerv2:UniFormerV2Adapter
   backend: uniformerv2
@@ -255,13 +255,13 @@ integrations:
   upstream_lock: integrations/uniformerv2/upstream.lock.yaml
   checkpoint:
     registry_id: uniformerv2-default
-    status: verified
+    status: planned
   smoke_profile: *id005
   capabilities: *id001
 - id: umt
   display_name: UMT
   family: video_foundation
-  status: smoke_pass
+  status: planned
   definition: configs/encoders/umt.yaml
   adapter_target: vadbench.integrations.foundation.umt:UMTAdapter
   backend: umt
@@ -273,13 +273,13 @@ integrations:
   upstream_lock: integrations/umt/upstream.lock.yaml
   checkpoint:
     registry_id: umt-default
-    status: verified
+    status: planned
   smoke_profile: *id005
   capabilities: *id001
 - id: internvideo2
   display_name: InternVideo2
   family: video_foundation
-  status: smoke_pass
+  status: planned
   definition: configs/encoders/internvideo2.yaml
   adapter_target: vadbench.integrations.foundation.internvideo2:InternVideo2Adapter
   backend: internvideo2
@@ -291,13 +291,13 @@ integrations:
   upstream_lock: integrations/internvideo2/upstream.lock.yaml
   checkpoint:
     registry_id: internvideo2-default
-    status: verified
+    status: planned
   smoke_profile: *id005
   capabilities: *id001
 - id: videomamba
   display_name: VideoMamba
   family: video_foundation
-  status: smoke_pass
+  status: planned
   definition: configs/encoders/videomamba.yaml
   adapter_target: vadbench.integrations.foundation.videomamba:VideoMambaAdapter
   backend: videomamba
@@ -309,13 +309,13 @@ integrations:
   upstream_lock: integrations/videomamba/upstream.lock.yaml
   checkpoint:
     registry_id: videomamba-default
-    status: verified
+    status: planned
   smoke_profile: *id005
   capabilities: *id001
 - id: vjepa2
   display_name: V-JEPA 2
   family: video_foundation
-  status: smoke_pass
+  status: planned
   definition: configs/encoders/vjepa2.yaml
   adapter_target: vadbench.integrations.foundation.vjepa2:VJEPA2Adapter
   backend: vjepa2
@@ -327,13 +327,13 @@ integrations:
   upstream_lock: integrations/vjepa2/upstream.lock.yaml
   checkpoint:
     registry_id: vjepa2-default
-    status: verified
+    status: planned
   smoke_profile: *id005
   capabilities: *id001
 - id: longvu
   display_name: LongVU
   family: long_video_vlm
-  status: smoke_pass
+  status: planned
   definition: configs/encoders/longvu.yaml
   adapter_target: vadbench.integrations.long_video.longvu:LongVUAdapter
   backend: longvu
@@ -345,7 +345,7 @@ integrations:
   upstream_lock: integrations/longvu/upstream.lock.yaml
   checkpoint:
     registry_id: longvu-default
-    status: verified
+    status: planned
   smoke_profile: &id006
     profile: long-32x336
     clip_frames: 32
@@ -366,7 +366,7 @@ integrations:
 - id: videochat
   display_name: VideoChat
   family: video_vlm
-  status: smoke_pass
+  status: planned
   definition: configs/encoders/videochat.yaml
   adapter_target: vadbench.integrations.long_video.videochat:VideoChatAdapter
   backend: videochat
@@ -378,13 +378,13 @@ integrations:
   upstream_lock: integrations/videochat/upstream.lock.yaml
   checkpoint:
     registry_id: videochat-default
-    status: verified
+    status: planned
   smoke_profile: *id006
   capabilities: *id007
 - id: videochat_online
   display_name: VideoChat-Online
   family: streaming_vlm
-  status: smoke_pass
+  status: planned
   definition: configs/encoders/videochat-online.yaml
   adapter_target: vadbench.integrations.long_video.videochat_online:VideoChatOnlineAdapter
   backend: videochat-online
@@ -396,7 +396,7 @@ integrations:
   upstream_lock: integrations/videochat_online/upstream.lock.yaml
   checkpoint:
     registry_id: videochat_online-default
-    status: verified
+    status: planned
   smoke_profile: &id008
     profile: streaming-2x4x336
     clip_frames: 4
@@ -417,7 +417,7 @@ integrations:
 - id: videochat_flash
   display_name: VideoChat-Flash
   family: long_video_vlm
-  status: smoke_pass
+  status: planned
   definition: configs/encoders/videochat-flash.yaml
   adapter_target: vadbench.integrations.long_video.videochat_flash:VideoChatFlashAdapter
   backend: videochat-flash
@@ -429,13 +429,13 @@ integrations:
   upstream_lock: integrations/videochat_flash/upstream.lock.yaml
   checkpoint:
     registry_id: videochat_flash-default
-    status: verified
+    status: planned
   smoke_profile: *id006
   capabilities: *id007
 - id: ma_lmm
   display_name: MA-LMM
   family: streaming_vlm
-  status: smoke_pass
+  status: planned
   definition: configs/encoders/ma-lmm.yaml
   adapter_target: vadbench.integrations.long_video.ma_lmm:MALMMAdapter
   backend: ma-lmm
@@ -447,13 +447,13 @@ integrations:
   upstream_lock: integrations/ma_lmm/upstream.lock.yaml
   checkpoint:
     registry_id: ma_lmm-default
-    status: verified
+    status: planned
   smoke_profile: *id008
   capabilities: *id009
 - id: moviechat
   display_name: MovieChat
   family: streaming_vlm
-  status: smoke_pass
+  status: planned
   definition: configs/encoders/moviechat.yaml
   adapter_target: vadbench.integrations.long_video.moviechat:MovieChatAdapter
   backend: moviechat
@@ -465,13 +465,13 @@ integrations:
   upstream_lock: integrations/moviechat/upstream.lock.yaml
   checkpoint:
     registry_id: moviechat-default
-    status: verified
+    status: planned
   smoke_profile: *id008
   capabilities: *id009
 - id: streaming_vlm
   display_name: StreamingVLM
   family: streaming_vlm
-  status: smoke_pass
+  status: planned
   definition: configs/encoders/streaming-vlm.yaml
   adapter_target: vadbench.integrations.long_video.streaming_vlm:StreamingVLMAdapter
   backend: streaming-vlm
@@ -483,7 +483,7 @@ integrations:
   upstream_lock: integrations/streaming_vlm/upstream.lock.yaml
   checkpoint:
     registry_id: streaming_vlm-default
-    status: verified
+    status: planned
   smoke_profile: *id008
   capabilities: &id010
     supports_fixed_clip: false
@@ -499,7 +499,7 @@ integrations:
 - id: infinipot_v
   display_name: InfiniPot-V
   family: streaming_vlm
-  status: smoke_pass
+  status: planned
   definition: configs/encoders/infinipot-v.yaml
   adapter_target: vadbench.integrations.long_video.infinipot_v:InfiniPotVAdapter
   backend: infinipot-v
@@ -511,7 +511,7 @@ integrations:
   upstream_lock: integrations/infinipot_v/upstream.lock.yaml
   checkpoint:
     registry_id: infinipot_v-default
-    status: verified
+    status: planned
   smoke_profile: *id008
   capabilities: *id010
 - id: hermes_llava_ov
@@ -545,7 +545,7 @@ integrations:
 - id: mukv
   display_name: MuKV
   family: streaming_vlm
-  status: smoke_pass
+  status: planned
   definition: configs/encoders/mukv.yaml
   adapter_target: vadbench.integrations.long_video.mukv:MuKVAdapter
   backend: mukv
@@ -557,6 +557,6 @@ integrations:
   upstream_lock: integrations/mukv/upstream.lock.yaml
   checkpoint:
     registry_id: mukv-default
-    status: verified
+    status: planned
   smoke_profile: *id008
   capabilities: *id010

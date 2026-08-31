@@ -2,29 +2,23 @@ schema_version: 1
 name: umt
 adapter: umt
 family: video_foundation
-
 constructor:
-  compatibility_bridge: r2plus1d_18
-  # Only a local path is accepted by the adapter. ``model_name`` is provenance
-  # and is never sent to a hub client implicitly.
   model_name: OpenGVLab/UMT-B
-  model_path: weights/r2plus1d_18/model.pth
+  model_path: weights/umt
   checkout_path: external/umt
   runtime: external_python
   upstream_entrypoint: vadbench_upstream:load_model
   num_frames: 16
   image_size: 224
-  device: cpu
+  device: cuda
   feature_stage: backbone_tokens
   preprocess_profile: umt-bthwc-v1
-
 checkpoint:
   source: official
   model_id: OpenGVLab/UMT-B
   revision: planned
   license: mit
   local_path: weights/umt
-
 capabilities:
   supports_fixed_clip: true
   supports_streaming: false
@@ -36,5 +30,4 @@ capabilities:
   fixed_num_frames: null
   min_frames: 1
   max_frames: null
-
 upstream_lock: integrations/umt/upstream.lock.yaml

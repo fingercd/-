@@ -2,27 +2,23 @@ schema_version: 1
 name: vjepa2
 adapter: vjepa2
 family: video_foundation
-
 constructor:
-  compatibility_bridge: r2plus1d_18
   model_name: facebook/vjepa2-vitl-fpc64-256
-  model_path: weights/r2plus1d_18/model.pth
+  model_path: weights/vjepa2
   checkout_path: external/vjepa2
   runtime: external_python
   upstream_entrypoint: vadbench_upstream:load_model
   num_frames: 16
   image_size: 256
-  device: cpu
+  device: cuda
   feature_stage: backbone_tokens
   preprocess_profile: vjepa2-bthwc-v1
-
 checkpoint:
   source: huggingface
   model_id: facebook/vjepa2-vitl-fpc64-256
   revision: b3c1679b7c34d3255ef3547f27c7b226aefab26f
   license: mit
   local_path: weights/vjepa2
-
 capabilities:
   supports_fixed_clip: true
   supports_streaming: false
@@ -34,5 +30,4 @@ capabilities:
   fixed_num_frames: null
   min_frames: 1
   max_frames: null
-
 upstream_lock: integrations/vjepa2/upstream.lock.yaml

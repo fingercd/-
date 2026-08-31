@@ -2,27 +2,23 @@ schema_version: 1
 name: videomamba
 adapter: videomamba
 family: video_foundation
-
 constructor:
-  compatibility_bridge: r2plus1d_18
   model_name: OpenGVLab/VideoMamba-S
-  model_path: weights/r2plus1d_18/model.pth
+  model_path: weights/videomamba
   checkout_path: external/videomamba
   runtime: external_python
   upstream_entrypoint: vadbench_upstream:load_model
   num_frames: 16
   image_size: 224
-  device: cpu
+  device: cuda
   feature_stage: backbone_tokens
   preprocess_profile: videomamba-bthwc-v1
-
 checkpoint:
   source: official
   model_id: OpenGVLab/VideoMamba-S
   revision: planned
   license: apache-2.0
   local_path: weights/videomamba
-
 capabilities:
   supports_fixed_clip: true
   supports_streaming: false
@@ -34,5 +30,4 @@ capabilities:
   fixed_num_frames: null
   min_frames: 1
   max_frames: null
-
 upstream_lock: integrations/videomamba/upstream.lock.yaml

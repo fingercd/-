@@ -2,27 +2,23 @@ schema_version: 1
 name: uniformerv2
 adapter: uniformerv2
 family: fixed_clip
-
 constructor:
-  compatibility_bridge: r2plus1d_18
   model_name: OpenGVLab/UniFormerV2-B/16
-  model_path: weights/r2plus1d_18/model.pth
+  model_path: weights/uniformerv2
   checkout_path: external/uniformerv2
   runtime: external_python
   upstream_entrypoint: vadbench_upstream:load_model
   num_frames: 16
   image_size: 224
-  device: cpu
+  device: cuda
   feature_stage: pooled
   preprocess_profile: uniformerv2-bthwc-v1
-
 checkpoint:
   source: official
   model_id: OpenGVLab/UniFormerV2-B/16
   revision: planned
   license: apache-2.0
   local_path: weights/uniformerv2
-
 capabilities:
   supports_fixed_clip: true
   supports_streaming: false
@@ -34,5 +30,4 @@ capabilities:
   fixed_num_frames: null
   min_frames: 1
   max_frames: null
-
 upstream_lock: integrations/uniformerv2/upstream.lock.yaml

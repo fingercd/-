@@ -2,16 +2,13 @@ schema_version: 1
 name: videochat-online
 adapter: videochat_online
 family: streaming_vlm
-
 constructor:
-  compatibility_bridge: r2plus1d_18
   model_name: MCG-NJU/VideoChatOnline-4B
   checkout_path: external/videochat-online
-  model_path: weights/r2plus1d_18/model.pth
+  model_path: weights/videochat-online
   runtime: external_python
-  device: cpu
-  prompt: >-
-    Describe the visible video content, actions, objects, and temporal changes
+  device: cuda
+  prompt: Describe the visible video content, actions, objects, and temporal changes
     without assuming any event label.
   feature_stage: visual_memory
   cache_mode: identity
@@ -20,25 +17,21 @@ constructor:
   strict_assets: true
   upstream_entrypoint: internvl/model.py:load_model
   preprocess_profile: videochat-online-bthwc-v1
-
 checkpoint:
   source: huggingface
   model_id: MCG-NJU/VideoChatOnline-4B
   revision: 012712affb74681b88a317656a1effcf7b095933
   license: unknown
   local_path: weights/videochat-online
-
 input_profile:
   clip_frames: 4
   frame_stride: 2
   image_size: 336
   sampling: streaming_uniform
-
 output:
   feature_stage: visual_memory
   sequence_source: pyramid_memory_bank
   implementation_source: external_worker_facade
-
 capabilities:
   supports_fixed_clip: false
   supports_streaming: true
@@ -50,11 +43,9 @@ capabilities:
   fixed_num_frames: null
   min_frames: 1
   max_frames: null
-
 cache_semantics:
   kind: visual_memory
   compression: disabled
   owner: vision_memory_bank
   prompt_policy: fixed_category_independent
-
 upstream_lock: integrations/videochat_online/upstream.lock.yaml

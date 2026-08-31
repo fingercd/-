@@ -1,5 +1,13 @@
 # VADBench 当前进度（2026-08-31）
 
+## 0. 纠正声明
+
+此前文档把 17 条 R(2+1)D 兼容桥结果写成目标模型的 `smoke_pass`，该结论错误。兼容桥只能证明统一输入输出框架可运行，不能证明对应模型已经接入。
+
+当前可信状态是：**8 条原生路线真实权重通过，17 条原生路线待接入**。旧 `outputs/encoder-integration/current-video-final/` 矩阵视为 `contract_only` 历史产物，不再进入原生统计。
+
+纠错计划：`docs/plans/2026-08-31-native-encoder-integration-correction.md`；来源审计：`docs/research/native-encoder-source-audit-2026-08-31.md`。
+
 ## 1. 当前任务范围
 
 根据最新约定，当前 Goal 为：
@@ -11,7 +19,7 @@
 5. 不把重心放在各路线是否严格属于纯 encoder，而以工程接入与可运行为准；
 6. 不依赖人工标注，不训练检测头，不计算 AUC/AP/F1，不做性能比较，也不开展 KV cache 压缩。
 
-详细执行计划：`docs/plans/2026-08-31-25-video-model-integration.md`。
+纠错后的详细执行计划：`docs/plans/2026-08-31-native-encoder-integration-correction.md`。
 
 从本文件之后：
 
@@ -79,7 +87,7 @@ GPU 运行时注意：
 
 - 服务器全量测试：`360 passed, 1 skipped`
 - 服务器 Ruff check/format、compileall、`git diff --check` 均通过。
-- 当前视频矩阵：25 项 `smoke_pass`，0 failed，0 blocked；结果位于 `outputs/encoder-integration/current-video-final/matrix-ce32013.json`。
+- 原生当前状态：8 项 `smoke_pass`，17 项 `planned`。此前 25 项矩阵属于包含兼容桥的 `contract_only` 历史产物。
 
 ### VideoMAE V2 真权重
 
@@ -112,13 +120,12 @@ GPU 运行时注意：
 - 该结果使用合成特征，只证明工程链路，不代表 UCF-Crime 精度。
 
 
-## 5.1 25 路接入现状
+## 5.1 25 路原生接入现状
 
-- 25 个 ID 均在 catalog、lazy registry、定义 YAML 和 upstream lock 中登记。
 - 原生真实权重当前视频通过：`r2plus1d_18`、`x3d`、`mvitv2`、`slowfast`、`i3d`、`video_swin`、`videomaev2`、`hermes_llava_ov`。
-- 另外 17 条路线通过显式 `compatibility_bridge` 使用已校验的公开 R(2+1)D 权重完成真实当前视频契约 smoke；产物标记 `native_route_available=false`，不把兼容桥结果当作原生架构复现。
-- 固定路线输出均为 `features[B,S,D]` + `pooled[B,D]` + `TokenTimeline`；streaming 路线完成两个 chunk，状态/缓存视图递进且压缩为 `off/identity`。
-- 统一执行入口：`scripts/server/run_encoder_matrix.sh`；只读资产核验：`scripts/server/prepare_encoder_assets.py`。
+- 其余 17 条默认配置已删除兼容桥并恢复 native checkpoint 路径，状态改回 `planned`。
+- 后续严格按纠错计划逐条获取官方代码/权重；资产或许可证不满足时标记 `blocked`，不再使用其他模型替代。
+- 原生矩阵见 `docs/progress/encoder-integration-matrix.md`。
 
 ## 6. UCF-Crime 数据状态
 
@@ -147,12 +154,13 @@ Canonical 软链：
 
 ## 7. 当前执行顺序
 
-1. catalog、schema、lazy registry 和双运行时已完成。
-2. 固定/基础/长视频/VLM adapter、配置、upstream lock 和统一 JSON smoke v2 已完成。
-3. 服务器资产预检通过；按环境分组执行当前视频矩阵，最终 `selected_count=25`、`smoke_pass=25`。
-4. 后续可在此框架上替换兼容项的原生 checkout/权重；不改变公共输入输出契约。
+1. 纠正 17 条兼容桥的 catalog/checkpoint/config 状态；
+2. 冻结剩余路线的官方代码、真实 checkpoint、许可证和环境；
+3. 按 fixed、foundation、visual-memory、decoder-KV 四批原生接入；
+4. 每条使用当前真实视频独立生成 native smoke；
+5. 最终只统计 `native_upstream` 结果。
 
-当前 Goal 不进行标注制作、训练检测头、AUC/AP/F1、encoder 性能比较或 KV cache 压缩。
+不在当前任务中进行标注、训练检测头、AUC/AP、性能比较或 KV 压缩算法开发。
 
 ## 8. 统一接入原则
 
@@ -162,7 +170,7 @@ Canonical 软链：
 - 公共输出始终能归一化为 `features[B,S,D]`、`pooled[B,D]`、`TokenTimeline` 和 `aux`；
 - 需要冲突依赖的上游走独立 Python worker，不污染已有 `.venv`；
 - 可关闭的 KV 压缩设为 `off/identity`，只跑基础前向；
-- mock、随机权重或只加载配置不能记为真实 `smoke_pass`；
+- mock、随机权重、兼容桥或只加载配置不能记为原生 `smoke_pass`；
 - 上游缺权重、许可证或硬件不满足时保存可复核 `blocked` 证据，不伪造成功。
 
 每个功能完成后在服务器运行定向测试并提交中文 Conventional Commit；未经用户授权不 push。

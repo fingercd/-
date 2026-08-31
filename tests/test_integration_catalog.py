@@ -66,7 +66,16 @@ EXPECTED_FIXED_SMOKE_PROFILES = {
     "video_swin": ("video-swin-32x224", 32, 2, 224),
 }
 
-EXPECTED_INTEGRATED_IDS = EXPECTED_IDS
+EXPECTED_INTEGRATED_IDS = {
+    "r2plus1d_18",
+    "x3d",
+    "mvitv2",
+    "slowfast",
+    "i3d",
+    "video_swin",
+    "videomaev2",
+    "hermes_llava_ov",
+}
 
 
 def _raw_catalog() -> dict[str, Any]:
@@ -95,8 +104,12 @@ def test_catalog_contains_exactly_the_25_planned_targets() -> None:
         for record in catalog.integrations
         if record.status in {"integrated", "smoke_pass"}
     } == EXPECTED_INTEGRATED_IDS
-    assert all(record.status == "smoke_pass" for record in catalog.integrations)
-    assert sum(record.status == "planned" for record in catalog.integrations) == 0
+    assert all(
+        record.status == "smoke_pass"
+        for record in catalog.integrations
+        if record.id in EXPECTED_INTEGRATED_IDS
+    )
+    assert sum(record.status == "planned" for record in catalog.integrations) == 17
     assert all(
         record.checkpoint.status == "verified"
         for record in catalog.integrations
@@ -237,14 +250,11 @@ def test_existing_integrations_keep_targets_capabilities_and_references() -> Non
     assert hermes_spec.metadata["cache_owner"] == "language_model_decoder"
 
 
-def test_smoke_pass_targets_load_from_definition_and_keep_fail_closed_paths() -> None:
-    integrated = [
-        record
-        for record in DEFAULT_INTEGRATION_CATALOG.integrations
-        if record.status in {"integrated", "smoke_pass"}
-    ]
-    assert len(integrated) == 25
-    for record in integrated:
+def test_all_targets_have_definitions_but_only_native_routes_are_smoke_pass() -> None:
+    catalog = DEFAULT_INTEGRATION_CATALOG
+    assert sum(record.status == "smoke_pass" for record in catalog.integrations) == 8
+    assert sum(record.status == "planned" for record in catalog.integrations) == 17
+    for record in catalog.integrations:
         definition = load_encoder_definition(record.id, project_root=PROJECT_ROOT)
         assert definition["adapter"] == record.id
         assert (PROJECT_ROOT / record.definition).is_file()
