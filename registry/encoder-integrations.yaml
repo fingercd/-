@@ -101,7 +101,7 @@ integrations:
 - id: c3d
   display_name: C3D
   family: fixed_clip
-  status: planned
+  status: blocked
   definition: configs/encoders/c3d.yaml
   adapter_target: vadbench.integrations.legacy:LegacyVideoAdapter
   backend: legacy
@@ -243,7 +243,7 @@ integrations:
 - id: uniformerv2
   display_name: UniFormerV2
   family: fixed_clip
-  status: planned
+  status: blocked
   definition: configs/encoders/uniformerv2.yaml
   adapter_target: vadbench.integrations.foundation.uniformerv2:UniFormerV2Adapter
   backend: uniformerv2
@@ -261,7 +261,7 @@ integrations:
 - id: umt
   display_name: UMT
   family: video_foundation
-  status: planned
+  status: blocked
   definition: configs/encoders/umt.yaml
   adapter_target: vadbench.integrations.foundation.umt:UMTAdapter
   backend: umt
@@ -279,7 +279,7 @@ integrations:
 - id: internvideo2
   display_name: InternVideo2
   family: video_foundation
-  status: planned
+  status: blocked
   definition: configs/encoders/internvideo2.yaml
   adapter_target: vadbench.integrations.foundation.internvideo2:InternVideo2Adapter
   backend: internvideo2
@@ -371,7 +371,7 @@ integrations:
 - id: videochat
   display_name: VideoChat
   family: video_vlm
-  status: planned
+  status: blocked
   definition: configs/encoders/videochat.yaml
   adapter_target: vadbench.integrations.long_video.videochat:VideoChatAdapter
   backend: videochat
@@ -445,7 +445,7 @@ integrations:
 - id: ma_lmm
   display_name: MA-LMM
   family: streaming_vlm
-  status: planned
+  status: blocked
   definition: configs/encoders/ma-lmm.yaml
   adapter_target: vadbench.integrations.long_video.ma_lmm:MALMMAdapter
   backend: ma-lmm
@@ -463,7 +463,7 @@ integrations:
 - id: moviechat
   display_name: MovieChat
   family: streaming_vlm
-  status: planned
+  status: blocked
   definition: configs/encoders/moviechat.yaml
   adapter_target: vadbench.integrations.long_video.moviechat:MovieChatAdapter
   backend: moviechat
@@ -514,7 +514,7 @@ integrations:
 - id: infinipot_v
   display_name: InfiniPot-V
   family: streaming_vlm
-  status: planned
+  status: blocked
   definition: configs/encoders/infinipot-v.yaml
   adapter_target: vadbench.integrations.long_video.infinipot_v:InfiniPotVAdapter
   backend: infinipot-v
@@ -560,7 +560,7 @@ integrations:
 - id: mukv
   display_name: MuKV
   family: streaming_vlm
-  status: planned
+  status: blocked
   definition: configs/encoders/mukv.yaml
   adapter_target: vadbench.integrations.long_video.mukv:MuKVAdapter
   backend: mukv

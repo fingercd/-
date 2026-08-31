@@ -278,3 +278,7 @@ native catalog id
 ```
 
 Goal 只有在剩余路线逐条满足第 1.2 节并且不存在未披露的 fallback 时才能重新标记完成。`contract_only` 结果永远不能替代 native smoke。
+
+## 9. 2026-09-01 执行状态
+
+当前计划已无 `planned` 项：14 条原生路线通过当前视频 smoke，11 条路线进入有证据的 `blocked`。`blocked` 项不得被兼容桥、随机权重、同族模型或未授权权重替换；解除门禁时必须补齐同一目标的官方资产、许可证、checksum 和真实 smoke。

@@ -124,9 +124,8 @@ checkpoints:
     sha256: {}
     size_bytes: null
     status: planned
-    notes: 官方仓库已归档，代码许可证为 CC-BY-NC-4.0；公开 Sports1M 权重的可获取 地址、文件大小和摘要尚未在服务器冻结，不能用 mock
-      或随机权重替代。 Native checkpoint is not yet materialised on the server; no substitute
-      model is accepted for native smoke.
+    notes: 官方 C3D Sports1M Dropbox 权重下载在 node2 超时，且服务器没有 caffe；无替代 checkpoint。 Native checkpoint is blocked; no substitute model is accepted for native smoke.
+    status_evidence: blocked
   i3d-default:
     adapter: i3d
     source: direct_url
@@ -284,9 +283,8 @@ checkpoints:
     sha256: {}
     size_bytes: null
     status: planned
-    notes: 官方代码仓库已登记；具体视频 checkpoint 的下载端点、revision、文件大小和 SHA256 尚未冻结，先以 variant 作为可追溯选择，不下载权重。
-      Native checkpoint is not yet materialised on the server; no substitute model
-      is accepted for native smoke.
+    notes: 官方 UniFormerV2 model-zoo 当前目标链接返回 404，未获得可校验权重；无替代 checkpoint。 Native checkpoint is blocked; no substitute model is accepted for native smoke.
+    status_evidence: blocked
   umt-default:
     adapter: umt
     source: github
@@ -307,9 +305,8 @@ checkpoints:
     sha256: {}
     size_bytes: null
     status: planned
-    notes: 锁定官方代码 commit 与 UMT-B 变体；官方权重下载资产尚未在服务器冻结， 因此 size/sha256 明确为 null/空映射。
-      Native checkpoint is not yet materialised on the server; no substitute model
-      is accepted for native smoke.
+    notes: 官方 UMT Issue 50 已记录模型链接失效，未获得可校验权重；无替代 checkpoint。 Native checkpoint is blocked; no substitute model is accepted for native smoke.
+    status_evidence: blocked
   internvideo2-default:
     adapter: internvideo2
     source: github
@@ -330,9 +327,8 @@ checkpoints:
     sha256: {}
     size_bytes: null
     status: planned
-    notes: 只登记 InternVideo2 Stage2 视觉变体，不把整个 InternVideo 系列或 VLM decoder 错写成同一个 adapter；权重资产待服务器预检后再冻结。
-      Native checkpoint is not yet materialised on the server; no substitute model
-      is accepted for native smoke.
+    notes: 官方 InternVideo2 HF 权重返回 gated 403，当前账号无访问权限；无替代 checkpoint。 Native checkpoint is blocked; no substitute model is accepted for native smoke.
+    status_evidence: blocked
   videomamba-default:
     adapter: videomamba
     source: huggingface
@@ -429,9 +425,8 @@ checkpoints:
     sha256: {}
     size_bytes: null
     status: planned
-    notes: Ask-Anything upstream lock 指向 VideoChat-7B；该 HF ID 在本次预检中未确认可访问， 因此保留 planned/null
-      证据，不用其他 VideoChat2 变体冒充同一资产。 Native checkpoint is not yet materialised on the
-      server; no substitute model is accepted for native smoke.
+    notes: Ask Anything 的 VideoChat-7B HF 目标预检返回 401/不可访问，未获得可校验权重；不冒充 VideoChat2。 Native checkpoint is blocked; no substitute model is accepted for native smoke.
+    status_evidence: blocked
   videochat_online-default:
     adapter: videochat_online
     source: huggingface
@@ -513,9 +508,8 @@ checkpoints:
     sha256: {}
     size_bytes: null
     status: planned
-    notes: 官方 MA-LMM 代码与其 BLIP2/Q-Former/LLM 依赖需分层冻结；memory bank 是视觉 记忆，不等同于语言模型 decoder
-      KV cache，当前只登记 planned 来源。 Native checkpoint is not yet materialised on the
-      server; no substitute model is accepted for native smoke.
+    notes: 官方 saved_model.tar Google Drive 端点在 node2 超时，未获得可校验权重；不使用随机或其他模型。 Native checkpoint is blocked; no substitute model is accepted for native smoke.
+    status_evidence: blocked
   moviechat-default:
     adapter: moviechat
     source: huggingface
@@ -540,9 +534,8 @@ checkpoints:
     sha256: {}
     size_bytes: null
     status: planned
-    notes: 维护仓与 HF checkpoint 已分开登记；当前 upstream lock 指向 Enxin/MovieChat-vicuna， 文件清单待预检补齐，代码许可证按锁定仓库记录为
-      BSD-3-Clause。 Native checkpoint is not yet materialised on the server; no substitute
-      model is accepted for native smoke.
+    notes: 官方/登记的 MovieChat-vicuna HF 目标预检不可访问，且 Vicuna/LLaMA base 未冻结；多许可证链未闭合。 Native checkpoint is blocked; no substitute model is accepted for native smoke.
+    status_evidence: blocked
   streaming_vlm-default:
     adapter: streaming_vlm
     source: huggingface
@@ -607,9 +600,8 @@ checkpoints:
     sha256: {}
     size_bytes: null
     status: planned
-    notes: 公开仓库当前未见可确认的 LICENSE 文件；checkpoint、文件大小和摘要均未冻结， 因此保留 unknown/null，并在获取前要求许可证核验。
-      Native checkpoint is not yet materialised on the server; no substitute model
-      is accepted for native smoke.
+    notes: 官方 InfiniPot-V 仓库未发现明确 LICENSE 与可校验 checkpoint，许可/资产门禁未通过。 Native checkpoint is blocked; no substitute model is accepted for native smoke.
+    status_evidence: blocked
   hermes-llava-ov-0.5b:
     adapter: hermes_llava_ov
     source: huggingface
@@ -673,6 +665,5 @@ checkpoints:
     sha256: {}
     size_bytes: null
     status: planned
-    notes: MuKV adapter 与 HERMES adapter 保持独立；本条只复用已校验的 LLaVA-OneVision 0.5B 基座，不把
-      MuKV 仓库（当前未见 LICENSE）误写成基座权重许可，也不执行 KV 压缩。 Native checkpoint is not yet materialised
-      on the server; no substitute model is accepted for native smoke.
+    notes: 官方 MuKV 仓库未发现 LICENSE，当前只有 LLaVA-OneVision 基座信息而无 MuKV 增量权重；许可门禁未通过。 Native checkpoint is blocked; no substitute model is accepted for native smoke.
+    status_evidence: blocked
