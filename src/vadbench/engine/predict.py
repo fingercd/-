@@ -172,13 +172,10 @@ def _strict_video_coverage(
                 f"{video_id}: frame coverage has a gap [{previous_end}, {current_start})"
             )
         if current_start < previous_end:
-            raise ValueError(
-                f"{video_id}: frame coverage overlaps at frame {current_start}"
-            )
+            raise ValueError(f"{video_id}: frame coverage overlaps at frame {current_start}")
     if frame_ends[-1] != manifest.num_frames:
         raise ValueError(
-            f"{video_id}: frame coverage ends at {frame_ends[-1]}, "
-            f"expected {manifest.num_frames}"
+            f"{video_id}: frame coverage ends at {frame_ends[-1]}, expected {manifest.num_frames}"
         )
 
 
@@ -283,9 +280,7 @@ def predict_feature_head(
             frame_starts_raw = timeline.get("source_frame_start")
             frame_ends_raw = timeline.get("source_frame_end")
             if frame_starts_raw is None or frame_ends_raw is None:
-                raise ValueError(
-                    "feature records/timeline do not contain real source frame ranges"
-                )
+                raise ValueError("feature records/timeline do not contain real source frame ranges")
             frame_starts = _numpy(frame_starts_raw).astype(np.int64, copy=False)
             frame_ends = _numpy(frame_ends_raw).astype(np.int64, copy=False)
             start_seconds = _numpy(timeline["start_s"]).astype(np.float64, copy=False)
@@ -340,17 +335,9 @@ def predict_feature_head(
                     start_s = float(start_seconds[row, position])
                     end_s = float(end_seconds[row, position])
                     if manifest_record.fps is not None:
-                        start_s = int(row_frame_starts[output_index]) / float(
-                            manifest_record.fps
-                        )
-                        end_s = int(row_frame_ends[output_index]) / float(
-                            manifest_record.fps
-                        )
-                    if (
-                        not np.isfinite(start_s)
-                        or not np.isfinite(end_s)
-                        or end_s <= start_s
-                    ):
+                        start_s = int(row_frame_starts[output_index]) / float(manifest_record.fps)
+                        end_s = int(row_frame_ends[output_index]) / float(manifest_record.fps)
+                    if not np.isfinite(start_s) or not np.isfinite(end_s) or end_s <= start_s:
                         raise ValueError(f"{video_id}: invalid stored prediction timeline")
                     score = float(score_array[row, position])
                     prediction_records.append(
@@ -369,9 +356,7 @@ def predict_feature_head(
                             encoder_fingerprint=dataset.encoder_fingerprint,
                             metadata={
                                 "task": task_name,
-                                "score_level": (
-                                    "clip" if one_score_per_clip else "snippet"
-                                ),
+                                "score_level": ("clip" if one_score_per_clip else "snippet"),
                                 "source_clip_index": source_clip_index,
                                 "checkpoint": Path(checkpoint_path).name,
                             },

@@ -63,9 +63,7 @@ def _features(
     store = FeatureStore(tmp_path / "features")
     fingerprint = compute_encoder_fingerprint({"adapter": "predict-test"})
     indices = list(range(len(intervals))) if clip_indices is None else clip_indices
-    for row, ((start, end), clip_index) in enumerate(
-        zip(intervals, indices, strict=True)
-    ):
+    for row, ((start, end), clip_index) in enumerate(zip(intervals, indices, strict=True)):
         store.write(
             video_id=video_id,
             clip_id=f"{video_id}:clip-{row}",
