@@ -71,7 +71,10 @@ def test_foundation_ids_construct_through_lazy_registry(adapter_id: str) -> None
 
     assert adapter.capabilities == FOUNDATION_CAPABILITIES
     assert adapter.backend == adapter_id
-    assert isinstance(adapter.bridge, ExternalPythonFoundationBridge)
+    if adapter_id == "vjepa2":
+        assert adapter.runtime == "in_process"
+    else:
+        assert isinstance(adapter.bridge, ExternalPythonFoundationBridge)
     output = adapter.encode(_batch())
 
     assert output.features.shape == (2, 3, 6)

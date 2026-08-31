@@ -6,11 +6,10 @@ constructor:
   model_name: facebook/vjepa2-vitl-fpc64-256
   model_path: weights/vjepa2
   checkout_path: external/vjepa2
-  runtime: external_python
-  upstream_entrypoint: vadbench_upstream:load_model
-  num_frames: 16
+  runtime: in_process
+  num_frames: 64
   image_size: 256
-  device: cuda
+  device: cpu
   feature_stage: backbone_tokens
   preprocess_profile: vjepa2-bthwc-v1
 checkpoint:

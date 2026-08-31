@@ -615,6 +615,14 @@ class FoundationVideoAdapter(VideoEncoderAdapter):
         from vadbench.integrations.common import normalize_feature_stage
 
         self.backend = self.BACKEND
+        # An injected test/model object is not evidence that the native upstream
+        # loader ran. Keep that distinction in smoke provenance.
+        self._native_upstream = injected is None and (
+            loader is not None
+            or factory is not None
+            or upstream_entrypoint is not None
+            or entrypoint is not None
+        )
         self.model_name = model_name or self.DEFAULT_MODEL_NAME
         self.device = device
         self.runtime = runtime or self.DEFAULT_RUNTIME
@@ -671,7 +679,10 @@ class FoundationVideoAdapter(VideoEncoderAdapter):
             preprocess_profile=self.preprocess_profile,
             aux={
                 "backend": self.backend,
-                "implementation_source": "lazy_upstream_bridge",
+                "implementation_source": "native_upstream"
+                if self._native_upstream
+                else "lazy_upstream_bridge",
+                "native_route_available": bool(self._native_upstream),
                 "runtime": self.runtime,
                 "model_name": self.model_name,
                 "model_path": None if self.model_path is None else str(self.model_path),

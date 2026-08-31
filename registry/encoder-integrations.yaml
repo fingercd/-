@@ -189,7 +189,7 @@ integrations:
 - id: videomae
   display_name: VideoMAE
   family: fixed_clip
-  status: integrated
+  status: smoke_pass
   definition: configs/encoders/videomae.yaml
   adapter_target: vadbench.integrations.transformers_video:TransformersVideoAdapter
   backend: transformers-video
@@ -315,20 +315,25 @@ integrations:
 - id: vjepa2
   display_name: V-JEPA 2
   family: video_foundation
-  status: planned
+  status: smoke_pass
   definition: configs/encoders/vjepa2.yaml
   adapter_target: vadbench.integrations.foundation.vjepa2:VJEPA2Adapter
   backend: vjepa2
   run_mode: fixed
   feature_stage: backbone_tokens
   environment:
-    runtime: external_python
-    profile: foundation-vjepa2
+    runtime: in_process
+    profile: vjepa2
   upstream_lock: integrations/vjepa2/upstream.lock.yaml
   checkpoint:
     registry_id: vjepa2-default
-    status: planned
-  smoke_profile: *id005
+    status: verified
+  smoke_profile:
+    profile: vjepa2-64x256
+    clip_frames: 64
+    frame_stride: 1
+    image_size: 256
+    chunks: 1
   capabilities: *id001
 - id: longvu
   display_name: LongVU

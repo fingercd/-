@@ -128,7 +128,7 @@ def test_server_verified_assets_match_registered_sha256(
 def test_planned_entries_do_not_alias_verified_compatibility_weights() -> None:
     entries = _raw_registry()["checkpoints"]
     planned = [entry for entry in entries.values() if entry.get("status") == "planned"]
-    assert len(planned) == 16
+    assert len(planned) == 14
     for entry in planned:
         assert entry.get("validation_scope") is None
         assert entry.get("compatibility_checkpoint") is None

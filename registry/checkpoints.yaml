@@ -372,16 +372,16 @@ checkpoints:
     artifact_url: https://huggingface.co/facebook/vjepa2-vitl-fpc64-256/resolve/b3c1679b7c34d3255ef3547f27c7b226aefab26f/model.safetensors
     local_path: weights/vjepa2
     files:
-    - path: null
-      upstream_name: null
-      size_bytes: null
-      sha256: null
-    sha256: {}
-    size_bytes: null
-    status: planned
-    notes: 官方 Meta 代码与 HF immutable encoder 权重分开记录；文件 SHA/size 来自 HF resolver 元数据，当前尚未下载到服务器。
-      Native checkpoint is not yet materialised on the server; no substitute model
-      is accepted for native smoke.
+    - path: model.safetensors
+      upstream_name: model.safetensors
+      size_bytes: 1303947864
+      sha256: 25466aef85727d16546c6cf8c99f12fcfad9cbca8225d45f23685e2e025b786b
+    sha256:
+      model.safetensors: 25466aef85727d16546c6cf8c99f12fcfad9cbca8225d45f23685e2e025b786b
+    size_bytes: 1303947864
+    status: verified
+    notes: Meta V-JEPA 2 ViT-L/16 checkpoint 已由 node2 hf-mirror 下载并按 immutable revision
+      与 SHA256 校验；使用官方 get_vision_features 接口。
   longvu-default:
     adapter: longvu
     source: huggingface
