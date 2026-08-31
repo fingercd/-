@@ -9,12 +9,10 @@ from typing import Any
 from vadbench.compression import build_cache_policy
 from vadbench.config import load_yaml, validate_capabilities
 from vadbench.contracts import ClipBatch
+from vadbench.integrations import DEFAULT_INTEGRATION_CATALOG
 from vadbench.registry import ENCODER_REGISTRY
 
-BUILTIN_ENCODER_CONFIGS = {
-    "videomaev2": "configs/encoders/videomaev2-base.yaml",
-    "hermes_llava_ov": "configs/encoders/hermes-llava-ov-0.5b.yaml",
-}
+BUILTIN_ENCODER_CONFIGS = dict(DEFAULT_INTEGRATION_CATALOG.definition_paths())
 
 
 def load_encoder_definition(
@@ -24,9 +22,27 @@ def load_encoder_definition(
     path: str | Path | None = None,
 ) -> dict[str, Any]:
     root = Path(project_root).resolve()
-    selected = Path(path) if path is not None else Path(BUILTIN_ENCODER_CONFIGS[adapter_id])
+    if path is None:
+        try:
+            selected = Path(BUILTIN_ENCODER_CONFIGS[adapter_id])
+        except KeyError as exc:
+            raise ValueError(f"catalog 中不存在 encoder definition：{adapter_id!r}") from exc
+    else:
+        selected = Path(path)
     if not selected.is_absolute():
         selected = root / selected
+    selected = selected.resolve()
+    if selected != root and root not in selected.parents:
+        raise ValueError(f"encoder {adapter_id!r} 的 definition 越出 project_root：{selected}")
+    if not selected.is_file():
+        status = (
+            DEFAULT_INTEGRATION_CATALOG.get(adapter_id).status
+            if adapter_id in BUILTIN_ENCODER_CONFIGS
+            else "custom"
+        )
+        raise FileNotFoundError(
+            f"encoder {adapter_id!r} 的 definition 不存在（catalog status={status}）：{selected}"
+        )
     definition = load_yaml(selected)
     if definition.get("adapter") != adapter_id:
         raise ValueError(

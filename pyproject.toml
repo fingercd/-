@@ -52,6 +52,9 @@ vadbench = "vadbench.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/vadbench"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"registry/encoder-integrations.yaml" = "vadbench/resources/encoder-integrations.yaml"
+
 [tool.pytest.ini_options]
 addopts = "-ra"
 testpaths = ["tests"]
