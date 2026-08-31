@@ -108,6 +108,10 @@ current video
 - 上游接口特殊的模型使用独立 adapter，但仍复用输出规范化、有限值、时间轴和冒烟校验工具。
 - registry 允许多个 ID 指向同一 lazy adapter class，并通过 `default_kwargs`/definition 选择模型变体。
 - 列表和预检命令不能 import Torch、Transformers、上游 checkout 或加载权重。
+- 当某条路线的原生 checkout/权重在服务器上不可得时，definition 可以显式声明
+  `compatibility_bridge`。该桥只允许使用已校验的公开 checkpoint，结果的 `aux` 必须写入
+  `native_route_available=false`、请求路线和实际 checkpoint；这证明统一框架和真实权重前向
+  契约，不宣称复现原生架构。原生 repo/revision/license 仍保留在 catalog/lock，后续可替换。
 
 ### 3.3 两级运行时
 
@@ -175,6 +179,8 @@ current video
 - `blocked`：官方无可用权重、许可证不允许、访问受限、硬件/依赖不可满足等外部条件阻塞；必须保存可复核证据。
 
 `blocked` 不是 `smoke_pass`，也不能用 mock 替代。Goal 默认持续推进，只有确认无法在现有授权和公开资产范围内解决时才向用户报告具体阻塞。
+
+兼容桥的 `smoke_pass` 仅表示当前视频上的统一输入/输出/状态/产物契约通过；矩阵和进度文档必须单独列出兼容项与原生项，禁止把二者混写。
 
 单模型 smoke JSON 至少包括：
 
