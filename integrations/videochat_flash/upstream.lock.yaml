@@ -23,10 +23,12 @@ entrypoints:
 weights:
   provider: huggingface
   model_id: OpenGVLab/VideoChat-Flash-Qwen2_5-2B_res448
-  revision: main
+  revision: 878b4d86ab382a83b9353c33db89210aa459a735
   local_dir: weights/videochat-flash
-  sha256: {}
-  status: planned
+  sha256:
+    model.safetensors: 8d7599e40867eaac136fffa154b070c71aa22bc73b3c1ceece1dcb094f70b475
+  size_bytes: 4143085560
+  status: verified
 
 integration_notes:
   - VideoChat-Flash 同时包含 clip/long-context 与多种 Qwen/InternVideo variant；本 lock 选择最小公开 2B 方向作为接入入口。

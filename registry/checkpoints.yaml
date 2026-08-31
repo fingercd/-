@@ -471,28 +471,26 @@ checkpoints:
     revision: 3d521087215c9024199b0512370a29dee1c0fee6
     artifact_revision: 878b4d86ab382a83b9353c33db89210aa459a735
     variant: VideoChat-Flash-Qwen2_5-2B_res448
-    license: mit
-    license_url: https://github.com/OpenGVLab/VideoChat-Flash/blob/3d521087215c9024199b0512370a29dee1c0fee6/LICENSE
+    license: apache-2.0
+    license_url: https://huggingface.co/OpenGVLab/VideoChat-Flash-Qwen2_5-2B_res448
     allow_patterns:
     - config.json
-    - model-00001-of-00004.safetensors
-    - model-00002-of-00004.safetensors
-    - model-00003-of-00004.safetensors
-    - model-00004-of-00004.safetensors
-    - model.safetensors.index.json
+    - model.safetensors
+    - '*.py'
+    - '*.json'
     artifact_url: https://huggingface.co/OpenGVLab/VideoChat-Flash-Qwen2_5-2B_res448
     local_path: weights/videochat-flash
     files:
-    - path: null
-      upstream_name: null
-      size_bytes: null
-      sha256: null
-    sha256: {}
-    size_bytes: null
-    status: planned
-    notes: HF 2B res448 变体与官方代码 commit 已登记；分片体积和摘要留待预检， 不把 VideoChat-Flash 的层级视觉压缩误写成
-      decoder KV 压缩。 Native checkpoint is not yet materialised on the server; no substitute
-      model is accepted for native smoke.
+    - path: model.safetensors
+      upstream_name: model.safetensors
+      size_bytes: 4143085560
+      sha256: 8d7599e40867eaac136fffa154b070c71aa22bc73b3c1ceece1dcb094f70b475
+    sha256:
+      model.safetensors: 8d7599e40867eaac136fffa154b070c71aa22bc73b3c1ceece1dcb094f70b475
+    size_bytes: 4143085560
+    status: verified
+    notes: 官方 HF VideoChat-Flash 2B res448 单文件 checkpoint 已同步并按 SHA256 校验；原生 adapter 只加载
+      checkpoint 中 model.vision_tower 与 model.mm_projector，关闭 mm_llm_compress，不宣称 decoder KV。
   ma_lmm-default:
     adapter: ma_lmm
     source: github

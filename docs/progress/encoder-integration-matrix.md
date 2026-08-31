@@ -13,8 +13,8 @@
 
 | 原生状态 | 数量 |
 |---|---:|
-| `smoke_pass` | 12 |
-| `planned` | 13 |
+| `smoke_pass` | 13 |
+| `planned` | 12 |
 | `failed` | 0 |
 | `blocked` | 0（资产/许可证预检后可能出现） |
 
@@ -40,7 +40,7 @@
 | 16 | `longvu` | `planned` | 下载官方视频 checkpoint；40 GB GPU 资源预检；导出 projected visual |
 | 17 | `videochat` | `planned` | 核验 Ask-Anything 官方可下载 checkpoint；仅 demo 则 blocked |
 | 18 | `videochat_online` | `planned` | 下载官方 4B checkpoint；按公开实现注册为 `visual_memory`，不是 decoder KV |
-| 19 | `videochat_flash` | `planned` | 下载官方 2B@448 checkpoint；关闭压缩，导出真实 vision/projector feature |
+| 19 | `videochat_flash` | `smoke_pass` | 官方 2B res448 snapshot；只加载视觉塔/projector，关闭 `mm_llm_compress`；输出 `[1,64,1536]` |
 | 20 | `ma_lmm` | `planned` | 获取官方 saved_model.tar + InstructBLIP/LAVIS/Vicuna 资产 |
 | 21 | `moviechat` | `planned` | 固定 MovieChat/Onevision checkpoint、base model 和多份许可证 |
 | 22 | `streaming_vlm` | `planned` | 下载官方 8B BF16 四分片权重，接真实 compact decoder KV |

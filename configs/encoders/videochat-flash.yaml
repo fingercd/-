@@ -4,32 +4,32 @@ adapter: videochat_flash
 family: long_video_vlm
 constructor:
   model_name: OpenGVLab/VideoChat-Flash-Qwen2_5-2B_res448
-  checkout_path: external/videochat-flash
+  checkout_path: weights/videochat-flash
   model_path: weights/videochat-flash
-  runtime: external_python
-  device: cuda
+  runtime: in_process
+  device: cpu
+  num_frames: 4
   prompt: Describe the visible video content, actions, objects, and temporal changes
     without assuming any event label.
   feature_stage: projected_visual
   cache_mode: false
   strict_assets: true
-  upstream_entrypoint: llava-train_videochat/llava/model/builder.py:load_pretrained_model
   preprocess_profile: videochat-flash-bthwc-v1
 checkpoint:
   source: huggingface
   model_id: OpenGVLab/VideoChat-Flash-Qwen2_5-2B_res448
-  revision: 3d521087215c9024199b0512370a29dee1c0fee6
-  license: mit
+  revision: 878b4d86ab382a83b9353c33db89210aa459a735
+  license: apache-2.0
   local_path: weights/videochat-flash
 input_profile:
   clip_frames: 32
   frame_stride: 2
-  image_size: 336
+  image_size: 448
   sampling: uniform
 output:
   feature_stage: projected_visual
   sequence_source: hierarchical_visual_context
-  implementation_source: external_worker_facade
+  implementation_source: native_upstream
 capabilities:
   supports_fixed_clip: true
   supports_streaming: false

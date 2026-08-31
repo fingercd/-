@@ -422,20 +422,25 @@ integrations:
 - id: videochat_flash
   display_name: VideoChat-Flash
   family: long_video_vlm
-  status: planned
+  status: smoke_pass
   definition: configs/encoders/videochat-flash.yaml
   adapter_target: vadbench.integrations.long_video.videochat_flash:VideoChatFlashAdapter
   backend: videochat-flash
   run_mode: long
   feature_stage: projected_visual
   environment:
-    runtime: external_python
+    runtime: in_process
     profile: videochat-flash
   upstream_lock: integrations/videochat_flash/upstream.lock.yaml
   checkpoint:
     registry_id: videochat_flash-default
-    status: planned
-  smoke_profile: *id006
+    status: verified
+  smoke_profile:
+    profile: long-4x448
+    clip_frames: 4
+    frame_stride: 2
+    image_size: 448
+    chunks: 1
   capabilities: *id007
 - id: ma_lmm
   display_name: MA-LMM

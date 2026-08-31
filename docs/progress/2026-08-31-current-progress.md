@@ -4,7 +4,7 @@
 
 此前文档把 17 条 R(2+1)D 兼容桥结果写成目标模型的 `smoke_pass`，该结论错误。兼容桥只能证明统一输入输出框架可运行，不能证明对应模型已经接入。
 
-当前可信状态是：**12 条原生路线真实权重通过，13 条原生路线待接入**。旧 `outputs/encoder-integration/current-video-final/` 矩阵视为 `contract_only` 历史产物，不再进入原生统计。
+当前可信状态是：**13 条原生路线真实权重通过，12 条原生路线待接入**。旧 `outputs/encoder-integration/current-video-final/` 矩阵视为 `contract_only` 历史产物，不再进入原生统计。
 
 纠错计划：`docs/plans/2026-08-31-native-encoder-integration-correction.md`；来源审计：`docs/research/native-encoder-source-audit-2026-08-31.md`。
 
@@ -77,6 +77,11 @@ GPU 运行时注意：
 - 权重 SHA256：`a335d728ae4dbe4f49a435022f95c6cf98108d20fe084120db1f18cb73e84f4a`，28,290,634 bytes
 - 原生输出：`[1,1,192]`，`torch.float32`，CPU reference selective scan；不宣称跨 clip state/cache。
 
+### VideoChat-Flash
+
+- Adapter：`videochat_flash`；官方 HF snapshot：`OpenGVLab/VideoChat-Flash-Qwen2_5-2B_res448`，revision `878b4d86ab382a83b9353c33db89210aa459a735`。
+- 原生 loader 只加载 `model.vision_tower`（303 keys）与 `model.mm_projector`（4 keys），关闭 `mm_llm_compress`；当前视频 4 帧 smoke 输出 `features=[1,64,1536]`、`pooled=[1,1536]`，`native_route_available=true`。
+
 ### V-JEPA 2
 
 - Adapter：`vjepa2`；权重目录：`weights/vjepa2`；Meta 官方 `facebook/vjepa2-vitl-fpc64-256`。
@@ -102,7 +107,7 @@ GPU 运行时注意：
 
 - VideoMamba 提交前定向测试：`55 passed, 1 warning`；Ruff check/format 与 `git diff --check` 通过。
 - 最新全量测试基线仍需在本次四路原生变更后复跑；此前全量为 `360 passed, 1 skipped`。
-- 原生当前状态：12 项 `smoke_pass`，13 项 `planned`。此前 25 项矩阵属于包含兼容桥的 `contract_only` 历史产物。
+- 原生当前状态：13 项 `smoke_pass`，12 项 `planned`。此前 25 项矩阵属于包含兼容桥的 `contract_only` 历史产物。
 
 ### TimeSformer 真权重
 
@@ -145,8 +150,8 @@ GPU 运行时注意：
 
 ## 5.1 25 路原生接入现状
 
-- 原生真实权重当前视频通过：`r2plus1d_18`、`x3d`、`mvitv2`、`slowfast`、`i3d`、`video_swin`、`videomaev2`、`hermes_llava_ov`、`timesformer`、`videomae`、`videomamba`、`vjepa2`。
-- 其余 13 条默认配置已删除兼容桥并恢复 native checkpoint 路径，状态保持 `planned`；InternVideo2 的官方 HF 权重当前返回 gated 403，尚未把该路线计入 PASS。
+- 原生真实权重当前视频通过：`r2plus1d_18`、`x3d`、`mvitv2`、`slowfast`、`i3d`、`video_swin`、`videomaev2`、`hermes_llava_ov`、`timesformer`、`videomae`、`videomamba`、`vjepa2`、`videochat_flash`。
+- 其余 12 条默认配置已删除兼容桥并恢复 native checkpoint 路径，状态保持 `planned`；InternVideo2 的官方 HF 权重当前返回 gated 403，尚未把该路线计入 PASS。
 - 后续严格按纠错计划逐条获取官方代码/权重；资产或许可证不满足时标记 `blocked`，不再使用其他模型替代。
 - 原生矩阵见 `docs/progress/encoder-integration-matrix.md`。
 
