@@ -1,13 +1,13 @@
 # VADBench：可插拔视频编码器与 UCF-Crime 基准框架
 
-VADBench 用同一套数据、时间轴和产物协议比较两条视频建模路线：
+VADBench 用同一套数据、时间轴和产物协议编排 25 条视频模型/VLM 路线，比较两类视频建模路径：
 
 - **无状态固定 clip 编码器**：首个实现是 VideoMAE V2 Base。每个 clip 独立前向，不支持跨 clip KV cache。
 - **长视频流式上下文方法**：首个实现是 HERMES + LLaVA-OneVision-Qwen2-0.5B。它缓存并压缩的是语言模型 **decoder KV**，同时导出 decoder 前的视觉 token；它不是“带 KV cache 的视觉编码器”。
 
 首个 benchmark 是 UCF-Crime。框架覆盖官方 split 导入、32 段兼容采样、冻结特征抽取、弱监督 MIL、显式时序强监督、帧级 ROC-AUC/AP、缓存压缩注入和可追溯 JSON/JSONL 产物。原来的 `lab_anomaly/` VideoMAE V2 + MIL 代码仍保留，新的实验从 `src/vadbench/` 进入。
 
-[English](README.md) · [编码器调研](docs/research/video-encoder-survey-2026-08-31.md) · [UCF-Crime 协议](docs/research/ucf-crime-protocol.md) · [实施计划](docs/plans/2026-08-31-video-encoder-benchmark-framework.md)
+[English](README.md) · [编码器调研](docs/research/video-encoder-survey-2026-08-31.md) · [UCF-Crime 协议](docs/research/ucf-crime-protocol.md) · [25路实施计划](docs/plans/2026-08-31-25-video-model-integration.md) · [当前进度](docs/progress/2026-08-31-current-progress.md)
 
 ## 当前实现状态
 
@@ -18,12 +18,14 @@ VADBench 用同一套数据、时间轴和产物协议比较两条视频建模�
 | UCF-Crime 官方清单与标注导入 | ✅ | 自动阻止 train/test 泄漏 |
 | VideoMAE V2 adapter | ✅ | 稳定 pooled 输出；可选内部 hook 序列 |
 | HERMES adapter | ✅ | decoder KV、position IDs、原生层次压缩与遥测 |
+| 25 路 catalog/lazy registry | ✅ | 固定 clip、foundation、长视频/VLM 统一登记与能力协商 |
+| 当前视频 25 项 smoke v2 | ✅ | 25/25 smoke_pass；17 项显式兼容桥，8 项原生真实权重 |
 | 特征仓和运行产物 | ✅ | 内容寻址 NPZ/NPY + 版本化 JSONL |
 | 弱监督/强监督训练 | ✅ | Attention/Top-k MIL 与 temporal head |
 | UCF 帧级评测 | ✅ | micro frame ROC-AUC/AP |
 | 本地 mock/合成测试 | ✅ | PyTorch 与无 PyTorch 路径均覆盖 |
 | VideoMAE V2 真权重冒烟 | ✅（本地与 node3 CPU） | [本地证据](docs/evidence/local-videomaev2-smoke-2026-08-31.json) · [服务器证据](docs/evidence/server-videomaev2-smoke-2026-08-31.json) |
-| HERMES 真权重冒烟 | ✅（node3 CPU） | [证据](docs/evidence/server-hermes-smoke-2026-08-31.json)；A100 吞吐基准待空卡 |
+| HERMES 真权重冒烟 | ✅（node3 CPU） | [证据](docs/evidence/server-hermes-smoke-2026-08-31.json)；统一当前视频产物见 `outputs/encoder-integration/current-video-final/` |
 | train/evaluate 微型闭环 | ✅ | [证据](docs/evidence/pipeline-smoke-2026-08-31.json)；合成特征，不是 benchmark 分数 |
 | 真实 UCF 全量结果 | 尚未声称 | 仓库不含数据，必须使用官方视频与完整清单运行 |
 
@@ -51,7 +53,7 @@ scripts/                 上游同步与服务器离线部署脚本
 src/vadbench/
   contracts.py           encoder、时间轴、stream/cache 契约
   data/                   UCF manifest、采样、视频 I/O、特征数据集
-  integrations/          VideoMAE V2 / HERMES adapter
+  integrations/          25 路 catalog adapter、兼容桥与 worker protocol
   engine/                特征抽取、训练 runner、评测
   features.py            二进制特征仓与 JSONL 索引
   artifacts.py           provenance、预测、指标、cache telemetry
@@ -128,6 +130,38 @@ vadbench manifest validate data/manifests/ucf_crime/test.jsonl \
 官方端点是 MATLAB 1-based inclusive；导入器会转换为 zero-based half-open `[raw_start-1, raw_end)` 并保留原始端点。例如 `165..240` 变成 `[164,240)`，覆盖 76 帧。
 
 UCA 的时间戳自然语言事件可以用 `--uca-captions` 附加，但 `is_anomaly` 保持 `null`。没有显式审计的语义映射，不能把 UCA 所有区间当异常强监督。截止 2026-08-31，FS-UCF-Crime Zenodo 条目仍只有 placeholder。
+
+## 25 路当前视频冒烟
+
+服务器上的统一入口会先按环境分组运行固定 clip、PyTorchVideo、HERMES 和 VideoMAE V2，
+再生成一个 25 行的 JSON 矩阵：
+
+```bash
+cd /users/fotile/VAD
+python scripts/server/prepare_encoder_assets.py \
+  --output outputs/encoder-integration/assets-preflight.json
+VADBENCH_DEVICE=cpu \
+  bash scripts/server/run_encoder_matrix.sh \
+  data/smoke/mlvu-surveil-8.mp4
+```
+
+也可以只做轻量发现/预检：
+
+```bash
+python -m vadbench integrations list
+python -m vadbench integrations preflight
+```
+
+最终结果位于 `outputs/encoder-integration/current-video-final/matrix-ce32013.json`，对应视频
+SHA256 为 `5c7dd43429c5e556de67489920a799af8fdb614a089ab52c04b1c3b044703963`。固定路线输出
+统一为 `features[B,S,D]`、`pooled[B,D]` 和 `TokenTimeline`；流式路线至少消费两个 chunk
+并显式传递 `StreamState`。所有 v2 smoke 都关闭压缩，仅使用 `off/identity`。
+
+由于服务器没有部分原生上游 checkout/权重，C3D、TimeSformer、VideoMAE、UniFormerV2、UMT、
+InternVideo2、VideoMamba、V-JEPA2、LongVU、VideoChat 系列、MA-LMM、MovieChat、StreamingVLM、
+InfiniPot-V 和 MuKV 使用显式 `compatibility_bridge`。它们加载已校验的公开 TorchVision
+R(2+1)D 权重完成真实前向，产物写入 `native_route_available=false`；这证明统一工程契约，
+不声称复现这些路线的原生架构。替换原生权重时只需更新 definition/lock，不改公共接口。
 
 ## 抽取特征
 
