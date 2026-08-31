@@ -3,20 +3,19 @@ name: videomamba
 adapter: videomamba
 family: video_foundation
 constructor:
-  model_name: OpenGVLab/VideoMamba-S
-  model_path: weights/videomamba
+  model_name: OpenGVLab/VideoMamba
+  model_path: weights/videomamba/videomamba_t16_k400_f16_res224.pth
   checkout_path: external/videomamba
-  runtime: external_python
-  upstream_entrypoint: vadbench_upstream:load_model
+  runtime: in_process
   num_frames: 16
   image_size: 224
-  device: cuda
+  device: cpu
   feature_stage: backbone_tokens
   preprocess_profile: videomamba-bthwc-v1
 checkpoint:
   source: official
-  model_id: OpenGVLab/VideoMamba-S
-  revision: planned
+  model_id: OpenGVLab/VideoMamba
+  revision: 69502a732f8f69709cec9ed6c54d5345259fd825
   license: apache-2.0
   local_path: weights/videomamba
 capabilities:

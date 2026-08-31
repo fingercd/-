@@ -297,19 +297,19 @@ integrations:
 - id: videomamba
   display_name: VideoMamba
   family: video_foundation
-  status: planned
+  status: smoke_pass
   definition: configs/encoders/videomamba.yaml
   adapter_target: vadbench.integrations.foundation.videomamba:VideoMambaAdapter
   backend: videomamba
   run_mode: fixed
   feature_stage: backbone_tokens
   environment:
-    runtime: external_python
-    profile: foundation-videomamba
+    runtime: in_process
+    profile: videomamba
   upstream_lock: integrations/videomamba/upstream.lock.yaml
   checkpoint:
     registry_id: videomamba-default
-    status: planned
+    status: verified
   smoke_profile: *id005
   capabilities: *id001
 - id: vjepa2

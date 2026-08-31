@@ -71,7 +71,7 @@ def test_foundation_ids_construct_through_lazy_registry(adapter_id: str) -> None
 
     assert adapter.capabilities == FOUNDATION_CAPABILITIES
     assert adapter.backend == adapter_id
-    if adapter_id == "vjepa2":
+    if adapter_id in {"vjepa2", "videomamba"}:
         assert adapter.runtime == "in_process"
     else:
         assert isinstance(adapter.bridge, ExternalPythonFoundationBridge)

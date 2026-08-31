@@ -77,6 +77,7 @@ EXPECTED_INTEGRATED_IDS = {
     "hermes_llava_ov",
     "timesformer",
     "videomae",
+    "videomamba",
     "vjepa2",
 }
 
@@ -112,7 +113,7 @@ def test_catalog_contains_exactly_the_25_planned_targets() -> None:
         for record in catalog.integrations
         if record.id in EXPECTED_INTEGRATED_IDS
     )
-    assert sum(record.status == "planned" for record in catalog.integrations) == 14
+    assert sum(record.status == "planned" for record in catalog.integrations) == 13
     assert all(
         record.checkpoint.status == "verified"
         for record in catalog.integrations
@@ -255,8 +256,8 @@ def test_existing_integrations_keep_targets_capabilities_and_references() -> Non
 
 def test_all_targets_have_definitions_but_only_native_routes_are_smoke_pass() -> None:
     catalog = DEFAULT_INTEGRATION_CATALOG
-    assert sum(record.status == "smoke_pass" for record in catalog.integrations) == 11
-    assert sum(record.status == "planned" for record in catalog.integrations) == 14
+    assert sum(record.status == "smoke_pass" for record in catalog.integrations) == 12
+    assert sum(record.status == "planned" for record in catalog.integrations) == 13
     for record in catalog.integrations:
         definition = load_encoder_definition(record.id, project_root=PROJECT_ROOT)
         assert definition["adapter"] == record.id

@@ -335,27 +335,28 @@ checkpoints:
       is accepted for native smoke.
   videomamba-default:
     adapter: videomamba
-    source: github
+    source: huggingface
     repo_id: OpenGVLab/VideoMamba
-    repo_url: https://github.com/OpenGVLab/VideoMamba
-    revision: 37355c26d0ae99ca2459f6d4044a5f509031a79f
-    variant: VideoMamba-S
+    repo_url: https://huggingface.co/OpenGVLab/VideoMamba
+    revision: 69502a732f8f69709cec9ed6c54d5345259fd825
+    variant: videomamba_t16_k400_f16_res224
     license: apache-2.0
-    license_url: https://github.com/OpenGVLab/VideoMamba/blob/37355c26d0ae99ca2459f6d4044a5f509031a79f/LICENSE
-    allow_patterns: []
-    artifact_url: null
-    local_path: weights/videomamba
+    license_url: https://huggingface.co/OpenGVLab/VideoMamba
+    allow_patterns:
+    - videomamba_t16_k400_f16_res224.pth
+    artifact_url: https://huggingface.co/OpenGVLab/VideoMamba/resolve/69502a732f8f69709cec9ed6c54d5345259fd825/videomamba_t16_k400_f16_res224.pth
+    local_path: weights/videomamba/videomamba_t16_k400_f16_res224.pth
     files:
-    - path: null
-      upstream_name: null
-      size_bytes: null
-      sha256: null
-    sha256: {}
-    size_bytes: null
-    status: planned
-    notes: 官方 SSM 视频模型代码已锁定；mamba-ssm/causal-conv1d 依赖和 checkpoint 尚未 冻结，不能因为内部使用
-      SSM 就宣称支持跨片段缓存。 Native checkpoint is not yet materialised on the server; no
-      substitute model is accepted for native smoke.
+    - path: videomamba_t16_k400_f16_res224.pth
+      upstream_name: videomamba_t16_k400_f16_res224.pth
+      size_bytes: 28290634
+      sha256: a335d728ae4dbe4f49a435022f95c6cf98108d20fe084120db1f18cb73e84f4a
+    sha256:
+      videomamba_t16_k400_f16_res224.pth: a335d728ae4dbe4f49a435022f95c6cf98108d20fe084120db1f18cb73e84f4a
+    size_bytes: 28290634
+    status: verified
+    notes: 官方 VideoMamba Tiny K400 16-frame checkpoint 已从官方 Hugging Face 仓库同步并按 SHA256
+      校验；使用 pinned checkout 的 VisionMamba，不宣称跨 clip streaming state。
   vjepa2-default:
     adapter: vjepa2
     source: huggingface
