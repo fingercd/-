@@ -12,13 +12,14 @@ import numpy as np
 
 from vadbench import __version__
 from vadbench.artifacts import ArtifactStore, PredictionRecord, RunProvenance
+from vadbench.benchmark_plan import run_benchmark_plan
 from vadbench.checkpoints import (
     CheckpointError,
     fetch_checkpoint,
     load_checkpoint_registry,
     verify_checkpoint,
 )
-from vadbench.config import ConfigError, load_experiment
+from vadbench.config import ConfigError, load_experiment, load_yaml
 from vadbench.data.audit import audit_ucf_crime_dataset
 from vadbench.data.enrich import enrich_video_info
 from vadbench.data.labels import LabelProjectionError, frame_labels_from_manifest
@@ -191,6 +192,15 @@ def _parser() -> argparse.ArgumentParser:
     smoke.add_argument("--chunks", type=int, default=2)
     smoke.add_argument("--output")
     smoke.set_defaults(handler=_smoke)
+
+    benchmark = sub.add_parser("benchmark", help="运行逐 case 加载的固定/流式性能基准")
+    benchmark.add_argument("-c", "--config", required=True)
+    benchmark.add_argument("--video")
+    benchmark.add_argument("--device")
+    benchmark.add_argument("--warmup", type=int)
+    benchmark.add_argument("--repeat", type=int)
+    benchmark.add_argument("--output")
+    benchmark.set_defaults(handler=_benchmark)
     return parser
 
 
@@ -632,6 +642,40 @@ def _smoke(args: argparse.Namespace) -> int:
     )
     output_path = write_smoke_result(result, output)
     print(json.dumps({**result, "output": str(output_path)}, ensure_ascii=False, indent=2))
+    return 0
+
+
+def _benchmark(args: argparse.Namespace) -> int:
+    result = run_benchmark_plan(
+        args.config,
+        project_root=Path.cwd(),
+        video=args.video,
+        device=args.device,
+        warmup=args.warmup,
+        repeat_count=args.repeat,
+        output=args.output,
+    )
+    plan = load_yaml(args.config)
+    output = Path(args.output or plan["benchmark"]["output"]).resolve()
+    print(
+        json.dumps(
+            {
+                "output": str(output),
+                "comparison": result["comparison"],
+                "cases": [
+                    {
+                        "name": case["name"],
+                        "mode": case["mode"],
+                        "aggregate": case["aggregate"],
+                        "accuracy_eligibility": case["accuracy_eligibility"],
+                    }
+                    for case in result["cases"]
+                ],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     return 0
 
 
