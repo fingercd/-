@@ -19,6 +19,7 @@ from vadbench.checkpoints import (
     verify_checkpoint,
 )
 from vadbench.config import ConfigError, load_experiment
+from vadbench.data.audit import audit_ucf_crime_dataset
 from vadbench.data.enrich import enrich_video_info
 from vadbench.data.labels import LabelProjectionError, frame_labels_from_manifest
 from vadbench.data.manifest import ManifestError, load_manifest_jsonl
@@ -32,7 +33,7 @@ from vadbench.doctor import diagnostics_json
 from vadbench.engine.evaluate import evaluate_ucf_prediction_records
 from vadbench.engine.extract import FeatureExtractionEngine
 from vadbench.engine.runner import train_feature_head
-from vadbench.features import FeatureStore
+from vadbench.features import FeatureStore, atomic_write_json
 from vadbench.orchestration import (
     compression_from_experiment,
     create_encoder_from_experiment,
@@ -102,6 +103,20 @@ def _parser() -> argparse.ArgumentParser:
     manifest_enrich.add_argument("--dataset-root", required=True)
     manifest_enrich.add_argument("--output", required=True)
     manifest_enrich.set_defaults(handler=_manifest_enrich)
+
+    manifest_audit = manifest_sub.add_parser(
+        "audit-ucf", help="审计真实 UCF-Crime 文件、容器与官方 1610/290 协议"
+    )
+    manifest_audit.add_argument("--dataset-root", required=True)
+    manifest_audit.add_argument("--train-manifest", required=True)
+    manifest_audit.add_argument("--test-manifest", required=True)
+    manifest_audit.add_argument("--output", required=True)
+    manifest_audit.add_argument(
+        "--deep-hash",
+        action="store_true",
+        help="逐文件读取并计算 SHA256；默认只 stat 与 probe 容器",
+    )
+    manifest_audit.set_defaults(handler=_manifest_audit_ucf)
 
     weights = sub.add_parser("weights", help="权重注册、下载和校验")
     weights.add_argument("--registry", default=str(DEFAULT_REGISTRY))
@@ -288,6 +303,28 @@ def _manifest_enrich(args: argparse.Namespace) -> int:
     )
     print(json.dumps({"path": str(output), "videos": len(enriched)}, ensure_ascii=False, indent=2))
     return 0
+
+
+def _manifest_audit_ucf(args: argparse.Namespace) -> int:
+    report = audit_ucf_crime_dataset(
+        args.dataset_root,
+        args.train_manifest,
+        args.test_manifest,
+        deep_hash=args.deep_hash,
+    )
+    output = Path(args.output)
+    atomic_write_json(output, report)
+    summary = {
+        "status": report["status"],
+        "passed": report["passed"],
+        "output": str(output.resolve()),
+        "observed": report["observed"],
+        "files": report["files"],
+        "errors": len(report["errors"]),
+        "warnings": len(report["warnings"]),
+    }
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    return 0 if report["passed"] else 3
 
 
 def _load_spec(args: argparse.Namespace):
