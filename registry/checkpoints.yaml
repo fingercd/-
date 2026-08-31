@@ -173,13 +173,17 @@ checkpoints:
       upstream_name: pytorch_model.bin
       size_bytes: 486346639
       sha256: 968479f41eb3f2f4b1829ae06b663998dcc3782deb6a3e81746a9e51dbabd46d
+    - path: preprocessor_config.json
+      upstream_name: preprocessor_config.json
+      size_bytes: 412
+      sha256: e8afafdb9b557acdfe7952e8fc42bd7f0dd010ad4522e5dc873da88151a27dc0
     sha256:
       pytorch_model.bin: 968479f41eb3f2f4b1829ae06b663998dcc3782deb6a3e81746a9e51dbabd46d
+      preprocessor_config.json: e8afafdb9b557acdfe7952e8fc42bd7f0dd010ad4522e5dc873da88151a27dc0
     size_bytes: 486346639
-    status: planned
-    notes: HF immutable revision 与文件 SHA/size 已由 resolver 元数据核验，但权重尚未 下载到服务器；license
-      是模型卡声明的 CC-BY-NC-4.0，非本仓 MIT。 Native checkpoint is not yet materialised on the
-      server; no substitute model is accepted for native smoke.
+    status: verified
+    notes: TimeSformer K400 checkpoint 已经由 node2 的 hf-mirror 下载并在服务器按 immutable revision
+      与 SHA256 校验；许可证为 CC-BY-NC-4.0。
   video_swin-default:
     adapter: video_swin
     source: direct_url

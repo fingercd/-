@@ -753,6 +753,10 @@ class TransformersVideoAdapter(VideoEncoderAdapter):
                 "frame_count": [int(item) for item in lengths],
                 "frame_stride": self.frame_stride,
                 "timeline_policy": "uniform_token_to_frame_approximation",
+                "native_route_available": True,
+                "implementation_source": "native_upstream",
+                "native_model_path": None if self.model_path is None else str(self.model_path),
+                "native_revision": self.revision,
             },
         )
         validate_encoder_output(output, batch)

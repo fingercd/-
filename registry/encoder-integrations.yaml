@@ -145,7 +145,7 @@ integrations:
 - id: timesformer
   display_name: TimeSformer
   family: fixed_clip
-  status: planned
+  status: smoke_pass
   definition: configs/encoders/timesformer.yaml
   adapter_target: vadbench.integrations.transformers_video:TransformersVideoAdapter
   backend: transformers-video
@@ -157,7 +157,7 @@ integrations:
   upstream_lock: integrations/timesformer/upstream.lock.yaml
   checkpoint:
     registry_id: timesformer-default
-    status: planned
+    status: verified
   smoke_profile:
     profile: timesformer-8x224
     clip_frames: 8
