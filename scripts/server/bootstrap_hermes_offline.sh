@@ -11,8 +11,10 @@ fi
 
 "$venv_root/bin/python" -m pip install --no-index --find-links "$project_root/wheels" \
   accelerate==1.11.0 \
+  easydict==1.13 \
   logzero==1.7.0 \
   opencv-python-headless==4.11.0.86 \
+  timm==1.0.29 \
   tokenizers==0.19.1 \
   transformers==4.45.0.dev0
 "$venv_root/bin/python" -m pip install --no-index --find-links "$project_root/wheels" \
@@ -36,4 +38,3 @@ print(json.dumps({
     "llava_onevision": LlavaOnevisionForConditionalGeneration.__name__,
 }, sort_keys=True))
 PY
-
