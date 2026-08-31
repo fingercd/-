@@ -8,6 +8,8 @@
 
 纠错计划：`docs/plans/2026-08-31-native-encoder-integration-correction.md`；来源审计：`docs/research/native-encoder-source-audit-2026-08-31.md`。
 
+纠错提交：`b2dc918 fix(status): 纠正兼容桥冒烟状态`。
+
 ## 1. 当前任务范围
 
 根据最新约定，当前 Goal 为：
@@ -33,7 +35,7 @@
 - 节点：`ibnode3`（node3）
 - 项目目录：`/users/fotile/VAD`
 - 分支：`feat/video-encoder-benchmark-framework`
-- 当前最新代码提交：`38a5f43`（`feat(encoder): 接入25路视频模型统一适配框架`）；冒烟/进度提交：`ce32013`
+- 当前代码基线：`38a5f43`（25 路框架）；当前纠错提交：`b2dc918`；此前兼容桥历史提交：`ce32013`
 - 主运行环境：`/users/fotile/VAD/.venv`
 - HERMES 隔离环境：`/users/fotile/VAD/.venv-hermes`
 - PyTorch/CUDA：`torch 2.5.1+cu124` / CUDA 12.4
