@@ -1,14 +1,10 @@
 # VADBench 当前进度（2026-08-31）
 
-## 0. 纠正声明
+## 0. 当前状态
 
-此前文档把 17 条 R(2+1)D 兼容桥结果写成目标模型的 `smoke_pass`，该结论错误。兼容桥只能证明统一输入输出框架可运行，不能证明对应模型已经接入。
+当前可信状态是：14 条可计入 PASS 的原生前向通过，0 条路线仍为 planned，11 条路线因资产、依赖或许可门禁 blocked。只有目标自身代码、目标自身权重和真实视频前向通过的结果才进入原生统计。
 
-当前可信状态是：**14 条可计入 PASS 的原生前向通过，0 条路线仍为 planned，11 条路线因资产、依赖或许可门禁 blocked**。旧 `outputs/encoder-integration/current-video-final/` 矩阵视为 `contract_only` 历史产物，不再进入原生统计。
-
-纠错计划：`docs/plans/2026-08-31-native-encoder-integration-correction.md`；来源审计：`docs/research/native-encoder-source-audit-2026-08-31.md`。
-
-纠错提交：`b2dc918 fix(status): 纠正兼容桥冒烟状态`。
+来源审计：docs/research/native-encoder-source-audit-2026-08-31.md。
 
 ## 1. 当前任务范围
 
@@ -124,7 +120,7 @@ GPU 运行时注意：
 
 - VideoMamba 提交前定向测试：`55 passed, 1 warning`；Ruff check/format 与 `git diff --check` 通过。
 - 最新全量测试基线仍需在本次四路原生变更后复跑；此前全量为 `360 passed, 1 skipped`。
-- 原生当前状态：14 项 `smoke_pass`，0 项 `planned`，11 项 `blocked`；blocked 均记录具体资产、依赖或许可证据。此前 25 项矩阵属于包含兼容桥的 `contract_only` 历史产物。
+- 原生当前状态：14 项 smoke_pass，0 项 planned，11 项 blocked；blocked 均记录具体资产、依赖或许可证据，统计来源为当前 registry 和原生接入矩阵。
 
 ### TimeSformer 真权重
 

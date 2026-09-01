@@ -125,13 +125,12 @@ def test_server_verified_assets_match_registered_sha256(
         assert file_size == raw_entry["size_bytes"]
 
 
-def test_planned_entries_do_not_alias_verified_compatibility_weights() -> None:
+def test_planned_entries_require_native_checkpoint_without_alias() -> None:
     entries = _raw_registry()["checkpoints"]
     planned = [entry for entry in entries.values() if entry.get("status") == "planned"]
     assert len(planned) == 9
     for entry in planned:
         assert entry.get("validation_scope") is None
-        assert entry.get("compatibility_checkpoint") is None
         assert entry.get("local_path") != "weights/r2plus1d_18/model.pth"
         notes = str(entry.get("notes", "")).lower()
         assert "native checkpoint" in notes

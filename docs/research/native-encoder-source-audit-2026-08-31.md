@@ -29,7 +29,6 @@
 - 17 条路线都存在真实的“原生接入路径”，但可执行性不是均等的：HF 权重（TimeSformer、VideoMAE、VideoChat-Online、VideoChat-Flash、StreamingVLM、LongVU、V-JEPA2）优先；OSS/Google Drive/Caffe/旧 CUDA 路线必须逐项预检。
 - VideoChat-Online 的当前公开代码只能作为 `visual_memory`；当前原生两 chunk 已通过，但因仓库根目录无 LICENSE 文件进入 `blocked`；只有许可审计和未来官方 KV 实现均满足时才可升级。
 - InfiniPot-V 和 MuKV 即使代码可见，也不能在许可证未确认时复制进主树或标记可再分发。
-- 兼容桥只能保留为独立的框架契约测试，不能出现在原生 smoke 的 checkpoint、状态或 PASS 统计中。
 
 ## 2026-09-01 服务器执行结论
 

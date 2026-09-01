@@ -91,26 +91,6 @@ def create_encoder_from_experiment(
     if encoder_config.get("device") is not None:
         constructor["device"] = str(encoder_config["device"])
     _absolute_constructor_paths(constructor, Path(project_root).resolve())
-    # Some catalog routes intentionally opt into an explicit, real-weight
-    # compatibility bridge while their native upstream checkout/checkpoint is
-    # not materialised on this server.  The bridge is never selected silently:
-    # it is a definition-level constructor flag and records the requested route
-    # plus the base checkpoint in EncoderOutput.  Native adapters continue to
-    # use the lazy registry path below.
-    compatibility_bridge = constructor.pop("compatibility_bridge", None)
-    if compatibility_bridge:
-        from vadbench.integrations.compatibility import create_compatibility_adapter
-
-        constructor.setdefault("project_root", str(Path(project_root).resolve()))
-        constructor.setdefault("requested_backend", definition.get("backend", adapter_id))
-        constructor.setdefault("requested_feature_stage", definition.get("feature_stage", "pooled"))
-        constructor.setdefault("requested_model_name", definition.get("name", adapter_id))
-        if isinstance(compatibility_bridge, str) and compatibility_bridge.strip():
-            # The native definition may carry a route-specific variant (for
-            # example ``timesformer``).  The explicit bridge name is the
-            # authoritative constructor variant for this run.
-            constructor["variant"] = compatibility_bridge.strip()
-        return create_compatibility_adapter(adapter_id, **constructor), definition
     return ENCODER_REGISTRY.create(adapter_id, **constructor), definition
 
 

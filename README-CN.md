@@ -7,7 +7,7 @@ VADBench 用同一套数据、时间轴和产物协议编排 25 条视频模型/
 
 首个 benchmark 是 UCF-Crime。框架覆盖官方 split 导入、32 段兼容采样、冻结特征抽取、弱监督 MIL、显式时序强监督、帧级 ROC-AUC/AP、缓存压缩注入和可追溯 JSON/JSONL 产物。原来的 `lab_anomaly/` VideoMAE V2 + MIL 代码仍保留，新的实验从 `src/vadbench/` 进入。
 
-[English](README.md) · [编码器调研](docs/research/video-encoder-survey-2026-08-31.md) · [UCF-Crime 协议](docs/research/ucf-crime-protocol.md) · [原生接入纠错计划](docs/plans/2026-08-31-native-encoder-integration-correction.md) · [来源审计](docs/research/native-encoder-source-audit-2026-08-31.md) · [当前进度](docs/progress/2026-08-31-current-progress.md)
+[English](README.md) · [编码器调研](docs/research/video-encoder-survey-2026-08-31.md) · [UCF-Crime 协议](docs/research/ucf-crime-protocol.md) · [来源审计](docs/research/native-encoder-source-audit-2026-08-31.md) · [当前进度](docs/progress/2026-08-31-current-progress.md)
 
 ## 当前实现状态
 
@@ -135,11 +135,10 @@ UCA 的时间戳自然语言事件可以用 `--uca-captions` 附加，但 `is_an
 
 当前 catalog 保留 25 个目标，但严格区分原生状态：14 条路线已经用各自代码和各自公开权重
 通过当前视频 smoke，0 条路线仍为 `planned`，另有 11 条路线因资产/许可证门禁为 `blocked`，等待各自的官方 checkout、checkpoint、许可证
-和隔离环境。旧兼容桥输出只作为 `contract_only` 框架测试，不进入原生统计。
+和隔离环境；只有满足原生门禁的结果进入原生统计。
 
 详细的逐路线来源、真实 checkpoint、加载入口和阻塞条件见：
 
-- `docs/plans/2026-08-31-native-encoder-integration-correction.md`
 - `docs/research/native-encoder-source-audit-2026-08-31.md`
 - `docs/progress/encoder-integration-matrix.md`
 

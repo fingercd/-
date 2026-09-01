@@ -483,15 +483,6 @@ def _asset_identity(
     cp_path = (
         checkpoint.get("local_path") or weights.get("local_dir") or constructor.get("model_path")
     )
-    compatibility_bridge = constructor.get("compatibility_bridge")
-    if compatibility_bridge:
-        # The route's native asset remains represented by ``upstream`` above,
-        # while the checkpoint identity must describe the real file actually
-        # consumed by the verified compatibility forward.
-        cp_path = constructor.get("model_path") or "weights/r2plus1d_18/model.pth"
-        cp_repo = "pytorch/vision"
-        cp_revision = "v0.20.1"
-        cp_license = "bsd-3-clause"
     cp_path_text = None
     if cp_path is not None:
         cp_path_value = Path(str(cp_path))
@@ -499,7 +490,7 @@ def _asset_identity(
             cp_path_value = project_root / cp_path_value
         cp_path_text = _relative_path(cp_path_value, project_root)
     cp_hash: str | None = None
-    locked_hashes = {} if compatibility_bridge else weights.get("sha256")
+    locked_hashes = weights.get("sha256")
     if isinstance(locked_hashes, Mapping):
         for value in locked_hashes.values():
             if isinstance(value, str) and _HEX64.fullmatch(value):

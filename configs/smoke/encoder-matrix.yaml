@@ -8,8 +8,4 @@ streaming:
   compression:
     policy: identity
 matrix:
-  execution: scripts/server/run_encoder_matrix.sh
   native_route_results: true
-  compatibility_bridge_results: true
-  compatibility_checkpoint: weights/r2plus1d_18/model.pth
-  compatibility_policy: explicit_only

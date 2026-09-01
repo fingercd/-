@@ -108,10 +108,9 @@ current video
 - 上游接口特殊的模型使用独立 adapter，但仍复用输出规范化、有限值、时间轴和冒烟校验工具。
 - registry 允许多个 ID 指向同一 lazy adapter class，并通过 `default_kwargs`/definition 选择模型变体。
 - 列表和预检命令不能 import Torch、Transformers、上游 checkout 或加载权重。
-- 当某条路线的原生 checkout/权重在服务器上不可得时，definition 可以显式声明
-  `compatibility_bridge`。该桥只允许使用已校验的公开 checkpoint，结果的 `aux` 必须写入
-  `native_route_available=false`、请求路线和实际 checkpoint；这证明统一框架和真实权重前向
-  契约，不宣称复现原生架构。原生 repo/revision/license 仍保留在 catalog/lock，后续可替换。
+- 当某条路线的原生 checkout/权重在服务器上不可得时，definition 必须保持 planned 或 blocked，
+不得用其他模型或替代 checkpoint 伪造目标路线的 smoke；原生 repo/revision/license 仍保留在
+catalog/lock，待资产满足后再运行。
 
 ### 3.3 两级运行时
 
@@ -157,7 +156,6 @@ current video
 | `integrations/<id>/upstream.lock.yaml` | 上游 URL、commit、许可证、入口与依赖说明 |
 | `registry/checkpoints.yaml` | checkpoint repo/revision/license/checksum/size |
 | `scripts/server/prepare_encoder_assets.py` | 只做显式目标的资产预检/获取编排，不删除文件 |
-| `scripts/server/run_encoder_matrix.sh` | 空闲 GPU 检查、tmux/log/exit code、单目标运行 |
 | `tests/test_integration_catalog.py` | 25 项完整性、唯一性、lazy import、definition/lock 存在 |
 | `tests/test_integration_common.py` | shape/pooling/timeline/finite 规范化 |
 | `tests/test_encoder_family_*.py` | 各 backend 与特殊 adapter 契约测试 |
@@ -299,7 +297,6 @@ current video
 
 - 创建：`configs/smoke/encoder-matrix.yaml`
 - 创建：`scripts/server/prepare_encoder_assets.py`
-- 创建：`scripts/server/run_encoder_matrix.sh`
 - 修改：`registry/checkpoints.yaml`
 - 创建/修改：各目标 `integrations/<id>/upstream.lock.yaml`
 - 创建：对应脚本测试或 dry-run 测试。

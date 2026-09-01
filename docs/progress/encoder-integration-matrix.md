@@ -1,13 +1,8 @@
-# 25 路视频模型/VLM 原生接入矩阵（纠正版）
+# 25 路视频模型/VLM 原生接入矩阵
 
 > 更新日期：2026-08-31
-> 新计划：`docs/plans/2026-08-31-native-encoder-integration-correction.md`
 > 来源审计：`docs/research/native-encoder-source-audit-2026-08-31.md`
 > 当前视频：`data/smoke/mlvu-surveil-8.mp4`
-
-## 纠正说明
-
-此前 `outputs/encoder-integration/current-video-final/` 中的 25 项矩阵包含 17 条 R(2+1)D 兼容桥结果。它们只属于 `contract_only`，不能证明目标模型已接入，也不再计入原生 PASS。
 
 ## 当前汇总
 
@@ -55,4 +50,4 @@
 3. `aux.native_route_available=true`、`aux.implementation_source=native_upstream`；
 4. 当前视频真实前向，fixed 至少一 clip，streaming 至少两 chunk；
 5. shape、dtype、finite、timeline、state 和 JSON schema 全部通过；
-6. `contract_only`、mock、随机权重、其他模型 alias 永远不能计入。
+6. 未核验资产、mock、随机权重、其他模型 alias 永远不能计入。
