@@ -48,9 +48,6 @@ def build_environment(
                 str(PROJECT_ROOT / "external-v2/videomamba/causal-conv1d"),
             ]
         )
-    existing = env.get("PYTHONPATH")
-    if existing:
-        paths.append(existing)
     env["PYTHONPATH"] = os.pathsep.join(paths)
     env["PYTHONNOUSERSITE"] = "1"
     env["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -127,6 +124,9 @@ def main(argv: list[str] | None = None) -> int:
             "python_executable": str(python),
             "overlay": str(overlay) if overlay is not None else None,
             "base_marker_sha256": file_hash(group.prefix / ".vadbench-env-v2.json"),
+            "overlay_marker_sha256": (
+                file_hash(overlay / ".overlay-v2.json") if overlay is not None else None
+            ),
         }
         if not runnable:
             item.update({"status": "skipped", "reason": skip_reason})
@@ -178,9 +178,16 @@ def main(argv: list[str] | None = None) -> int:
                 )
             except Exception:
                 status = "failed"
+        technical_status = status
+        if candidate["license_state"] != "verified" and status == "smoke_pass":
+            status = "blocked_license"
         item.update(
             {
                 "status": status,
+                "technical_status": technical_status,
+                "reason": (
+                    "license_blocked_after_technical_pass" if status == "blocked_license" else None
+                ),
                 "exit_code": completed.returncode,
                 "result_path": (
                     result_path.relative_to(PROJECT_ROOT).as_posix()

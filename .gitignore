@@ -21,6 +21,10 @@ htmlcov/
 /weights/*
 /outputs/*
 /external/*
+/external-v2/
+/weights-v2/
+/.encoder-envs/
+/.cache-v2/
 /logs/
 /wheels/
 /wandb/

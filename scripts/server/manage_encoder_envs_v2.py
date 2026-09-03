@@ -119,6 +119,95 @@ def disk_guard(registry: Any) -> None:
         )
 
 
+def _repair_foundation_cuda_links(prefix: Path) -> list[dict[str, Any]]:
+    source_prefix = Path("/users/fotile/miniconda3/envs/mllm-comp-internav")
+    repairs = []
+    for source_link in (source_prefix / "lib").iterdir():
+        if not source_link.is_symlink():
+            continue
+        raw = os.readlink(source_link)
+        marker = str(source_prefix / "lib") + "/"
+        if not raw.startswith(marker) or "/site-packages/" not in raw:
+            continue
+        suffix = raw[len(marker) :]
+        target_link = prefix / "lib" / source_link.name
+        if target_link.is_symlink() and os.readlink(target_link) == suffix:
+            pass
+        else:
+            if target_link.exists() or target_link.is_symlink():
+                target_link.unlink()
+            target_link.symlink_to(suffix)
+        repairs.append({"path": f"lib/{source_link.name}", "target": suffix})
+    return repairs
+
+
+def _copy_if_missing(source: Path, target: Path) -> bool:
+    if target.exists() or target.is_symlink():
+        return False
+    if source.is_dir():
+        shutil.copytree(source, target, symlinks=True)
+    elif source.is_file() or source.is_symlink():
+        shutil.copy2(source, target, follow_symlinks=False)
+    else:
+        raise FileNotFoundError(source)
+    return True
+
+
+def _repair_h3_video_runtime(prefix: Path) -> list[dict[str, Any]]:
+    repairs = []
+    source_site = PROJECT_ROOT / ".venv/lib/python3.11/site-packages"
+    target_site = prefix / "lib/python3.11/site-packages"
+    package_names = (
+        "cv2",
+        "opencv_python_headless-4.11.0.86.dist-info",
+        "opencv_python_headless.libs",
+    )
+    copied_packages = [
+        name for name in package_names if _copy_if_missing(source_site / name, target_site / name)
+    ]
+    library_roots = (
+        Path("/users/fotile/miniconda3/pkgs/libsndfile-1.2.2-hc7d488a_2/lib"),
+        Path("/users/fotile/miniconda3/pkgs/libflac-1.5.0-he200343_1/lib"),
+        Path("/users/fotile/miniconda3/pkgs/libopus-1.6.1-h280c20c_0/lib"),
+        Path("/users/fotile/miniconda3/pkgs/libvorbis-1.3.7-h54a6638_2/lib"),
+        Path("/users/fotile/miniconda3/pkgs/libogg-1.3.5-hd0c01bc_1/lib"),
+        Path("/users/fotile/miniconda3/pkgs/mpg123-1.32.9-h8142553_0/lib"),
+        Path("/users/fotile/miniconda3/pkgs/lame-3.100-h166bdaf_1003/lib"),
+    )
+    copied_libraries = []
+    for source_root in library_roots:
+        for source in source_root.iterdir():
+            target = prefix / "lib" / source.name
+            if _copy_if_missing(source, target):
+                copied_libraries.append(source.name)
+    repairs.append(
+        {
+            "packages": list(package_names),
+            "copied_packages": copied_packages,
+            "libraries": sorted(copied_libraries),
+            "reason": "offline video and Transformers audio runtime",
+        }
+    )
+    return repairs
+
+
+def _apply_group_repairs(group_id: str, prefix: Path, marker: Path) -> None:
+    if group_id == "foundation-video-v2":
+        repairs = _repair_foundation_cuda_links(prefix)
+    elif group_id in {"visual-vlm-v2", "stream-kv-v2"}:
+        repairs = _repair_h3_video_runtime(prefix)
+    else:
+        repairs = []
+    if not repairs:
+        return
+    data = json.loads(marker.read_text(encoding="utf-8"))
+    data["repairs"] = repairs
+    marker.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
 def bootstrap(groups: list[str] | None, output_root: Path) -> dict[str, Any]:
     registry = load_encoder_environment_registry(PROJECT_ROOT)
     selected = groups if groups else list(registry.groups)
@@ -146,25 +235,38 @@ def bootstrap(groups: list[str] | None, output_root: Path) -> dict[str, Any]:
         else:
             group.prefix.parent.mkdir(parents=True, exist_ok=True)
             env = dict(os.environ)
-            env["CONDA_PKGS_DIRS"] = str(registry.cache_root / "conda-pkgs")
             env["PYTHONNOUSERSITE"] = "1"
-            command = [
-                str(CONDA),
-                "create",
-                "-y",
-                "-p",
-                str(group.prefix),
-                "--clone",
-                str(group.seed),
-            ]
-            completed = _run(command, env=env)
+            if group.seed.name == "h3":
+                group.prefix.mkdir(parents=True, exist_ok=False)
+                command = [
+                    "cp",
+                    "-a",
+                    "--reflink=auto",
+                    f"{group.seed}/.",
+                    str(group.prefix),
+                ]
+                completed = _run(command, env=env)
+                seed_method = "filesystem_reflink_copy"
+            else:
+                command = [
+                    str(CONDA),
+                    "create",
+                    "-y",
+                    "--offline",
+                    "-p",
+                    str(group.prefix),
+                    "--clone",
+                    str(group.seed),
+                ]
+                completed = _run(command, env=env)
+                seed_method = "conda_clone_offline"
             marker.write_text(
                 json.dumps(
                     {
                         "schema_version": 2,
                         "group": group_id,
                         "seed": str(group.seed),
-                        "seed_method": "conda_clone",
+                        "seed_method": seed_method,
                         "stdout_tail": completed.stdout[-4000:],
                     },
                     ensure_ascii=False,
@@ -174,6 +276,7 @@ def bootstrap(groups: list[str] | None, output_root: Path) -> dict[str, Any]:
                 encoding="utf-8",
             )
             status = "created"
+        _apply_group_repairs(group_id, group.prefix, marker)
         for encoder_id in group.encoders:
             overlay = registry.overlay_for(encoder_id)
             if overlay is not None:

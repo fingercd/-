@@ -71,6 +71,31 @@ def test_all_server_tools_use_v2_roots() -> None:
         "manage_encoder_envs_v2.py",
         "fetch_encoder_assets_v2.py",
         "run_native_encoder_matrix_v2.py",
+        "prepare_encoder_overlays_v2.py",
+        "consolidate_encoder_v2_results.py",
     ):
         text = (ROOT / "scripts/server" / name).read_text(encoding="utf-8")
-        assert ".encoder-envs/v2" in text or "load_encoder_environment_registry" in text
+        assert (
+            ".encoder-envs/v2" in text
+            or "load_encoder_environment_registry" in text
+            or "load_encoder_candidates" in text
+        )
+
+
+def test_consolidator_keeps_license_and_registration_gates(tmp_path: Path) -> None:
+    consolidate = load_script("consolidate_encoder_v2_results.py")
+    payload = consolidate.consolidate(tmp_path)
+    assert payload["target_count"] == 25
+    assert payload["counts"] == {
+        "blocked_license": 2,
+        "manual_required": 5,
+        "not_run": 14,
+        "unregistered": 4,
+    }
+
+
+def test_overlay_specs_include_observed_runtime_dependencies() -> None:
+    overlays = load_script("prepare_encoder_overlays_v2.py")
+    videomae_extra = overlays.COPY_SPECS["videomaev2"]["extra_sources"]
+    assert any("easydict" in names for _, names in videomae_extra)
+    assert "logzero" in overlays.COPY_SPECS["hermes_llava_ov"]["names"]

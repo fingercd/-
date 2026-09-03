@@ -9,6 +9,7 @@ import json
 import os
 import shutil
 import socket
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -19,10 +20,12 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
+from vadbench.config import load_yaml  # noqa: E402
 from vadbench.environment_registry import (  # noqa: E402
     load_encoder_candidates,
     load_encoder_environment_registry,
 )
+from vadbench.integrations.catalog import load_default_integration_catalog  # noqa: E402
 
 
 def sha256_file(path: Path) -> str:
@@ -64,6 +67,55 @@ def verify_entry(entry: dict[str, Any]) -> dict[str, Any]:
             }
         )
     return {"status": "verified" if passed else "missing_or_mismatch", "files": files}
+
+
+def verify_checkout(candidate: dict[str, Any], definition_path: str) -> dict[str, Any]:
+    definition = load_yaml(PROJECT_ROOT / definition_path)
+    constructor = definition.get("constructor", {})
+    checkout_value = constructor.get("checkout_path") if isinstance(constructor, dict) else None
+    lock = load_yaml(PROJECT_ROOT / candidate["upstream_lock"])
+    source = lock.get("source", {}) if isinstance(lock, dict) else {}
+    repository = source.get("repository") if isinstance(source, dict) else None
+    revision = source.get("commit") or source.get("revision") if isinstance(source, dict) else None
+    if not checkout_value:
+        return {
+            "status": "not_required",
+            "repository": repository,
+            "revision": revision,
+            "path": None,
+        }
+    checkout = Path(str(checkout_value))
+    if not checkout.is_absolute():
+        checkout = PROJECT_ROOT / checkout
+    if not checkout.is_dir():
+        return {
+            "status": "missing",
+            "repository": repository,
+            "revision": revision,
+            "path": checkout.as_posix(),
+        }
+    actual = None
+    if (checkout / ".git").exists():
+        completed = subprocess.run(
+            ["git", "-C", str(checkout), "rev-parse", "HEAD"],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if completed.returncode == 0:
+            actual = completed.stdout.strip()
+    status = (
+        "verified"
+        if actual is None or revision is None or actual == revision
+        else "revision_mismatch"
+    )
+    return {
+        "status": status,
+        "repository": repository,
+        "revision": revision,
+        "actual_revision": actual,
+        "path": checkout.as_posix(),
+    }
 
 
 def disk_guard(expected_bytes: int = 0) -> None:
@@ -129,6 +181,8 @@ def main(argv: list[str] | None = None) -> int:
     checkpoint_data = yaml.safe_load(
         (PROJECT_ROOT / "registry/checkpoints.yaml").read_text(encoding="utf-8")
     )["checkpoints"]
+    catalog = load_default_integration_catalog(PROJECT_ROOT)
+    records = {record.id: record for record in catalog.integrations}
     runtime_candidates = [
         item
         for item in candidates
@@ -139,6 +193,7 @@ def main(argv: list[str] | None = None) -> int:
     for candidate in runtime_candidates:
         checkpoint_id = candidate["checkpoint"]["registry_id"]
         entry = checkpoint_data[checkpoint_id]
+        checkout = verify_checkout(candidate, records[candidate["id"]].definition)
         verified = verify_entry(entry)
         if verified["status"] == "verified":
             items.append(
@@ -146,6 +201,7 @@ def main(argv: list[str] | None = None) -> int:
                     "integration_id": candidate["id"],
                     "checkpoint_id": checkpoint_id,
                     "status": "verified_existing",
+                    "code": checkout,
                     "files": verified["files"],
                 }
             )
@@ -183,6 +239,8 @@ def main(argv: list[str] | None = None) -> int:
                 "status": "manual_required",
                 "reason": reason,
                 "official_repo": candidate["checkpoint"].get("repo_url"),
+                "code": checkout,
+                "code_incoming_path": (environment.new_external_root / candidate["id"]).as_posix(),
                 "artifact_url": candidate["checkpoint"].get("artifact_url"),
                 "revision": candidate["checkpoint"].get("revision"),
                 "license": candidate["checkpoint"].get("license"),
