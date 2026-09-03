@@ -194,7 +194,6 @@ def _freeze_json_mapping(
     value: Mapping[str, Any], *, name: str, limits: ProtocolLimits = DEFAULT_LIMITS
 ) -> Mapping[str, Any]:
     copied = ensure_json_value(value, name=name, limits=limits)
-    assert isinstance(copied, dict)
     return MappingProxyType(copied)
 
 
@@ -342,14 +341,16 @@ def _validate_npy_header(
 
     try:
         version = np.lib.format.read_magic(handle)
-        shape, _fortran_order, dtype_value = np.lib.format._read_array_header(
-            handle,
-            version,
-            max_header_size=limits.max_header_bytes,
+        reader = {
+            (1, 0): np.lib.format.read_array_header_1_0,
+            (2, 0): np.lib.format.read_array_header_2_0,
+        }[version]
+        shape, _fortran_order, dtype_value = reader(
+            handle, max_header_size=limits.max_header_bytes
         )
         actual_shape = tuple(int(item) for item in shape)
         actual_dtype = _dtype(dtype_value)
-    except (EOFError, TypeError, ValueError) as exc:
+    except (EOFError, KeyError, TypeError, ValueError) as exc:
         raise SidecarIntegrityError(f"invalid NPY header: {reference.path}") from exc
     if len(actual_shape) > limits.max_ndim or any(item < 0 for item in actual_shape):
         raise SidecarIntegrityError("NPY header contains an invalid/oversized rank")
@@ -460,8 +461,6 @@ class SidecarStore:
         if os.path.lexists(destination):
             raise FileExistsError(f"refusing to overwrite sidecar: {destination}")
         os.replace(temporary, destination)
-        with destination.open("rb") as handle:
-            os.fsync(handle.fileno())
         os.chmod(destination, 0o600)
 
     def write_array(self, relative_path: str, value: Any) -> ArraySidecarRef:
@@ -470,7 +469,6 @@ class SidecarStore:
             raise WorkerProtocolError("write_array requires a .npy destination")
         array, source_dtype = _portable_array(value, name=relative_path)
         self._account_array(array)
-        descriptor: ArraySidecarRef | None = None
         temporary: Path | None = None
         try:
             descriptor_id, raw_path = tempfile.mkstemp(
@@ -486,7 +484,7 @@ class SidecarStore:
             digest = _sha256_file(temporary)
             self._promote_temp(temporary, path)
             temporary = None
-            descriptor = ArraySidecarRef(
+            return ArraySidecarRef(
                 path=path.relative_to(self.root).as_posix(),
                 format="npy",
                 key=None,
@@ -500,8 +498,6 @@ class SidecarStore:
         finally:
             if temporary is not None:
                 temporary.unlink(missing_ok=True)
-        assert descriptor is not None
-        return descriptor
 
     def write_npz(
         self, relative_path: str, arrays: Mapping[str, Any]
@@ -645,7 +641,6 @@ class SidecarStore:
                         allow_pickle=False,
                         max_header_size=self.limits.max_header_bytes,
                     ) as bundle:
-                        assert reference.key is not None
                         array = np.asarray(bundle[reference.key])
         except (EOFError, OSError, ValueError, zipfile.BadZipFile, zipfile.LargeZipFile) as exc:
             if isinstance(exc, SidecarIntegrityError):
