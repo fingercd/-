@@ -125,6 +125,9 @@ class _FixedWorker:
 
 
 class _StreamWorker:
+    def __init__(self) -> None:
+        self.operations: list[str] = []
+
     def init_state(
         self,
         video_id: str,
@@ -132,6 +135,7 @@ class _StreamWorker:
         prompt: str,
         feature_stage: str,
     ) -> dict[str, Any]:
+        self.operations.append("init_state")
         return {
             "video_id": video_id,
             "seen": 0,
@@ -148,6 +152,7 @@ class _StreamWorker:
         feature_stage: str,
         compression: Any = None,
     ) -> dict[str, Any]:
+        self.operations.append("encode_step")
         previous = state.opaque or {"seen": 0}
         seen = int(previous["seen"]) + int(chunk.valid_lengths[0])
         return {
@@ -164,6 +169,7 @@ class _StreamWorker:
         }
 
     def finalize(self, state: StreamState) -> None:
+        self.operations.append("finalize")
         return None
 
 
@@ -260,6 +266,47 @@ def test_json_worker_preserves_supplied_pooled_and_timeline() -> None:
     assert output.aux["worker"] == "json"
 
 
+def test_worker_parameter_names_do_not_change_canonical_objects() -> None:
+    batch = _batch()
+    fixed_inputs: list[Any] = []
+
+    class FixedWorker:
+        def encode(self, frames: Any) -> dict[str, Any]:
+            fixed_inputs.append(frames)
+            return {"features": np.ones((1, 1, 2), dtype=np.float32)}
+
+    LongVUAdapter(worker=FixedWorker()).encode(batch)
+    assert len(fixed_inputs) == 1
+    assert fixed_inputs[0] is batch
+
+    stream_inputs: list[tuple[Any, Any]] = []
+
+    class StreamWorker:
+        def init_state(self, identifier: str) -> dict[str, Any]:
+            return {"video_id": identifier}
+
+        def encode_step(self, frames: Any, worker_state: Any) -> dict[str, Any]:
+            stream_inputs.append((frames, worker_state))
+            return {
+                "features": np.ones((1, 1, 2), dtype=np.float32),
+                "state": {"seen": 4},
+            }
+
+        def finalize(self, worker_state: Any) -> None:
+            stream_inputs.append((None, worker_state))
+
+    adapter = StreamingVLMAdapter(worker=StreamWorker())
+    state = adapter.init_state("surveillance")
+    step = adapter.encode_step(batch, state)
+    adapter.finalize(step.state)
+
+    assert len(stream_inputs) == 2
+    assert stream_inputs[0][0] is batch
+    assert stream_inputs[0][1] is state
+    assert stream_inputs[1][0] is None
+    assert stream_inputs[1][1] is step.state
+
+
 @pytest.mark.parametrize(("encoder_id", "adapter_cls", "target", "stage"), STREAM_TARGETS)
 def test_streaming_targets_register_construct_and_advance_explicit_state(
     encoder_id: str,
@@ -269,7 +316,8 @@ def test_streaming_targets_register_construct_and_advance_explicit_state(
 ) -> None:
     registry = EncoderRegistry()
     registry.register_lazy(encoder_id, target, capabilities=adapter_cls.capabilities)
-    adapter = registry.create(encoder_id, worker=_StreamWorker(), cache_mode="identity")
+    worker = _StreamWorker()
+    adapter = registry.create(encoder_id, worker=worker, cache_mode="identity")
 
     state = adapter.init_state("surveillance")
     first = adapter.encode_step(_batch(start=0), state)
@@ -288,15 +336,18 @@ def test_streaming_targets_register_construct_and_advance_explicit_state(
     assert second.state.next_timestamp_s is not None
     assert second.state.next_timestamp_s > first.state.next_timestamp_s
     assert adapter.finalize(second.state) is None
+    assert worker.operations == ["init_state", "encode_step", "encode_step", "finalize"]
 
 
 def test_non_identity_cache_policy_is_rejected_without_calling_worker() -> None:
-    adapter = StreamingVLMAdapter(worker=_StreamWorker())
+    worker = _StreamWorker()
+    adapter = StreamingVLMAdapter(worker=worker)
     state = adapter.init_state("surveillance")
     with pytest.raises(LongVideoWorkerError) as captured:
         adapter.encode_step(_batch(), state, compression="keep_recent")
     assert captured.value.code == "compression_disabled"
     assert "不支持 KV 压缩" in str(captured.value)
+    assert worker.operations == ["init_state"]
 
 
 def test_nonfinite_worker_output_fails_closed() -> None:
@@ -321,22 +372,17 @@ def test_missing_checkout_and_checkpoint_fail_closed_with_structured_error(
     tmp_path: Path,
 ) -> None:
     with pytest.raises(LongVideoAssetError) as captured:
-        LongVUAdapter(
+        VideoChatAdapter(
             project_root=tmp_path,
-            checkout_path="external/missing-longvu",
-            model_path="weights/missing-longvu",
+            checkout_path="external/missing-videochat",
+            model_path="weights/missing-videochat",
         )
 
     error = captured.value.to_dict()
     assert error["code"] == "missing_asset"
-    assert error["integration_id"] == "longvu"
+    assert error["integration_id"] == "videochat"
     missing = error["details"]["missing"]
-    expected_missing = (
-        {"checkpoint"}
-        if isinstance(captured.value, LongVideoAssetError)
-        else {"checkout", "checkpoint"}
-    )
-    assert {entry["kind"] for entry in missing} == expected_missing
+    assert {entry["kind"] for entry in missing} == {"checkout", "checkpoint"}
     assert all(str(tmp_path) in entry["path"] for entry in missing)
 
 
@@ -345,11 +391,20 @@ def test_explicit_loader_hook_uses_only_local_assets(tmp_path: Path) -> None:
     model_path = tmp_path / "weights" / "longvu"
     checkout.mkdir(parents=True)
     model_path.mkdir(parents=True)
-    seen: dict[str, Any] = {}
+    calls: list[dict[str, Any]] = []
+    processor = object()
+    processor_calls: list[Any] = []
 
-    def load_model(*, model_path: str, device: str, **_: Any) -> _FixedWorker:
-        seen.update({"model_path": model_path, "device": device})
-        return _FixedWorker()
+    class LoadedWorker:
+        def encode(self, batch: ClipBatch, *, processor: Any) -> dict[str, Any]:
+            processor_calls.append(processor)
+            return {"features": np.ones((batch.batch_size, 3, 5), dtype=np.float32)}
+
+    def load_model(
+        *, checkout_path: str, model_path: str, device: str
+    ) -> tuple[LoadedWorker, object]:
+        calls.append({"checkout_path": checkout_path, "model_path": model_path, "device": device})
+        return LoadedWorker(), processor
 
     adapter = LongVUAdapter(
         project_root=tmp_path,
@@ -361,8 +416,88 @@ def test_explicit_loader_hook_uses_only_local_assets(tmp_path: Path) -> None:
     output = adapter.encode(_batch())
 
     assert output.features.shape == (1, 3, 5)
-    assert seen == {"model_path": str(model_path.resolve()), "device": "cpu"}
+    assert calls == [
+        {
+            "checkout_path": str(checkout.resolve()),
+            "model_path": str(model_path.resolve()),
+            "device": "cpu",
+        }
+    ]
+    assert adapter.processor is processor
+    assert processor_calls == [processor]
     assert adapter.implementation_source == "explicit_loader"
+
+
+@pytest.mark.parametrize(
+    "loaded",
+    [
+        {"model": _FixedWorker()},
+        (_FixedWorker(), object(), object()),
+    ],
+)
+def test_loader_rejects_ambiguous_returns_without_retry(tmp_path: Path, loaded: Any) -> None:
+    model_path = tmp_path / "weights" / "longvu"
+    model_path.mkdir(parents=True)
+    calls: list[int] = []
+
+    def load_model(**_: Any) -> Any:
+        calls.append(1)
+        return loaded
+
+    with pytest.raises(LongVideoWorkerError) as captured:
+        LongVUAdapter(project_root=tmp_path, model_path=model_path, load_model_fn=load_model)
+
+    assert captured.value.code == "model_load_failed"
+    assert calls == [1]
+
+
+@pytest.mark.parametrize(
+    ("route", "error_code"),
+    [("fixed", "forward_failed"), ("stream", "forward_failed"), ("loader", "model_load_failed")],
+)
+def test_upstream_type_error_is_not_retried(tmp_path: Path, route: str, error_code: str) -> None:
+    calls: list[str] = []
+    sentinel = TypeError("upstream bug")
+
+    if route == "fixed":
+
+        class Worker:
+            def encode(self, batch: ClipBatch) -> Any:
+                calls.append(route)
+                raise sentinel
+
+        def exercise() -> None:
+            LongVUAdapter(worker=Worker()).encode(_batch())
+
+    elif route == "stream":
+
+        class Worker:
+            def encode_step(self, chunk: ClipBatch, state: StreamState) -> Any:
+                calls.append(route)
+                raise sentinel
+
+        adapter = StreamingVLMAdapter(worker=Worker())
+
+        def exercise() -> None:
+            adapter.encode_step(_batch(), adapter.init_state("surveillance"))
+
+    else:
+        model_path = tmp_path / "weights" / "longvu"
+        model_path.mkdir(parents=True)
+
+        def load_model(**_: Any) -> Any:
+            calls.append(route)
+            raise sentinel
+
+        def exercise() -> None:
+            LongVUAdapter(project_root=tmp_path, model_path=model_path, load_model_fn=load_model)
+
+    with pytest.raises(LongVideoWorkerError) as captured:
+        exercise()
+
+    assert captured.value.code == error_code
+    assert captured.value.__cause__ is sentinel
+    assert calls == [route]
 
 
 def test_external_python_facade_can_be_injected_without_spawning_process() -> None:
@@ -491,7 +626,9 @@ def test_candidate_only_configs_and_locks_remain_research_records() -> None:
         config = yaml.safe_load(
             (PROJECT_ROOT / "configs" / "encoders" / file_name).read_text(encoding="utf-8")
         )
-        lock = yaml.safe_load((PROJECT_ROOT / candidate["upstream_lock"]).read_text(encoding="utf-8"))
+        lock = yaml.safe_load(
+            (PROJECT_ROOT / candidate["upstream_lock"]).read_text(encoding="utf-8")
+        )
 
         assert candidate["registration_state"] == "candidate_only"
         assert config["adapter"] == encoder_id

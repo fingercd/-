@@ -438,144 +438,6 @@ def _filtered_kwargs(function: Callable[..., Any], values: Mapping[str, Any]) ->
     return {key: value for key, value in values.items() if key in parameters}
 
 
-def _invoke_candidates(
-    function: Callable[..., Any], candidates: Sequence[tuple[tuple[Any, ...], Mapping[str, Any]]]
-) -> Any:
-    """Bind before calling, so a TypeError inside upstream code is not hidden."""
-
-    try:
-        signature = inspect.signature(function)
-    except (TypeError, ValueError):
-        args, kwargs = candidates[0]
-        return function(*args, **dict(kwargs))
-    for args, kwargs in candidates:
-        try:
-            signature.bind(*args, **dict(kwargs))
-        except TypeError:
-            continue
-        return function(*args, **dict(kwargs))
-    args, kwargs = candidates[0]
-    raise TypeError(
-        f"无法匹配 upstream callable {getattr(function, '__name__', function)!r} 的参数；"
-        f"签名为 {signature}"
-    )
-
-
-def _invoke_fixed(
-    function: Callable[..., Any],
-    batch: ClipBatch,
-    *,
-    prompt: str,
-    stage: str,
-    train: bool,
-    processor: Any | None = None,
-    device: str | None = None,
-) -> Any:
-    values = {
-        "batch": batch,
-        "clip": batch,
-        "clip_batch": batch,
-        "frames": batch.frames,
-        "video_frames": batch.frames,
-        "prompt": prompt,
-        "question": prompt,
-        "feature_stage": stage,
-        "train": train,
-        "processor": processor,
-        "device": device,
-    }
-    kwargs = _filtered_kwargs(function, values)
-    first_name = ""
-    try:
-        first = next(
-            parameter
-            for parameter in inspect.signature(function).parameters.values()
-            if parameter.kind
-            in {inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD}
-        )
-        first_name = first.name.lower()
-    except (IndexError, StopIteration, TypeError, ValueError):
-        pass
-    frame_first = first_name in {"frame", "frames", "images", "video", "video_frames"}
-    candidates = (
-        (((batch.frames,), kwargs), ((batch,), kwargs), ((), kwargs))
-        if frame_first
-        else (((batch,), kwargs), ((batch.frames,), kwargs), ((), kwargs))
-    )
-    return _invoke_candidates(function, candidates)
-
-
-def _invoke_stream(
-    function: Callable[..., Any],
-    chunk: ClipBatch,
-    state: StreamState,
-    *,
-    prompt: str,
-    stage: str,
-    compression: Any,
-    processor: Any | None = None,
-    device: str | None = None,
-) -> Any:
-    values = {
-        "chunk": chunk,
-        "batch": chunk,
-        "clip": chunk,
-        "frames": chunk.frames,
-        "video_frames": chunk.frames,
-        "state": state,
-        "stream_state": state,
-        "worker_state": state.opaque,
-        "opaque": state.opaque,
-        "prompt": prompt,
-        "question": prompt,
-        "feature_stage": stage,
-        "compression": compression,
-        "cache_policy": compression,
-        "processor": processor,
-        "device": device,
-    }
-    kwargs = _filtered_kwargs(function, values)
-    first_name = ""
-    second_name = ""
-    try:
-        positional = [
-            parameter
-            for parameter in inspect.signature(function).parameters.values()
-            if parameter.kind
-            in {inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD}
-        ]
-        first = positional[0]
-        first_name = first.name.lower()
-        if len(positional) > 1:
-            second_name = positional[1].name.lower()
-    except (IndexError, StopIteration, TypeError, ValueError):
-        pass
-    frame_first = first_name in {"frame", "frames", "images", "video", "video_frames"}
-    opaque_second = second_name in {"worker_state", "opaque", "cache_state", "backend_state"}
-    if isinstance(getattr(function, "__self__", None), ExternalPythonWorker):
-        opaque_second = True
-    state_pair = (chunk, state.opaque) if opaque_second else (chunk, state)
-    if frame_first:
-        candidates = (
-            ((chunk.frames, state_pair[1]), kwargs),
-            ((chunk, state_pair[1]), kwargs),
-            ((chunk.frames, state), kwargs),
-            ((chunk, state), kwargs),
-            ((chunk.frames,), kwargs),
-            ((chunk,), kwargs),
-            ((), kwargs),
-        )
-    else:
-        candidates = (
-            ((chunk, state_pair[1]), kwargs),
-            ((chunk.frames, state), kwargs),
-            ((chunk.frames, state.opaque), kwargs),
-            ((chunk,), kwargs),
-            ((), kwargs),
-        )
-    return _invoke_candidates(function, candidates)
-
-
 def _invoke_loader(
     function: Callable[..., Any],
     *,
@@ -585,21 +447,18 @@ def _invoke_loader(
     processor: Any | None,
     prompt: str,
 ) -> Any:
-    values = {
-        "checkout_path": None if checkout_path is None else str(checkout_path),
-        "model_path": None if model_path is None else str(model_path),
-        "checkpoint_path": None if model_path is None else str(model_path),
-        "device": device,
-        "processor": processor,
-        "prompt": prompt,
-    }
-    kwargs = _filtered_kwargs(function, values)
-    candidates: list[tuple[tuple[Any, ...], Mapping[str, Any]]] = [((), kwargs)]
-    if model_path is not None:
-        candidates.append(((str(model_path),), {}))
-    if checkout_path is not None and model_path is not None:
-        candidates.append(((str(checkout_path), str(model_path)), {}))
-    return _invoke_candidates(function, tuple(candidates))
+    return function(
+        **_filtered_kwargs(
+            function,
+            {
+                "checkout_path": None if checkout_path is None else str(checkout_path),
+                "model_path": None if model_path is None else str(model_path),
+                "device": device,
+                "processor": processor,
+                "prompt": prompt,
+            },
+        )
+    )
 
 
 def _load_entrypoint(checkout_path: Path, entrypoint: str, loader_kwargs: Mapping[str, Any]) -> Any:
@@ -631,36 +490,21 @@ def _load_entrypoint(checkout_path: Path, entrypoint: str, loader_kwargs: Mappin
 
 
 def _unpack_loaded_worker(loaded: Any, processor: Any | None) -> tuple[Any, Any | None]:
-    """Pick a model from common upstream ``(tokenizer, model, processor, ...)`` returns."""
+    """Accept a worker or the explicit ``(worker, processor)`` loader contract."""
 
-    if isinstance(loaded, Mapping) and "model" in loaded:
-        selected_processor = loaded.get("processor", processor)
-        return loaded["model"], selected_processor
-    if isinstance(loaded, (tuple, list)):
-        # The frequent two-item ``(model, processor)`` form is unambiguous.
-        if len(loaded) == 2 and (
-            callable(getattr(loaded[0], "encode", None)) or callable(loaded[0])
-        ):
-            return loaded[0], loaded[1] if processor is None else processor
-        model_candidate: Any | None = None
-        processor_candidate = processor
-        for item in loaded:
-            if callable(getattr(item, "encode", None)):
-                model_candidate = item
-                break
-        if model_candidate is None:
-            for item in loaded:
-                if callable(item) and not isinstance(item, str):
-                    model_candidate = item
-                    break
-        if processor_candidate is None:
-            for item in loaded:
-                if hasattr(item, "preprocess"):
-                    processor_candidate = item
-                    break
-        if model_candidate is not None:
-            return model_candidate, processor_candidate
-    return loaded, processor
+    if isinstance(loaded, tuple):
+        if len(loaded) != 2:
+            raise TypeError("loader tuple 必须是 (worker, processor)")
+        worker, loaded_processor = loaded
+    else:
+        worker, loaded_processor = loaded, None
+    if not (
+        callable(worker)
+        or callable(getattr(worker, "encode", None))
+        or callable(getattr(worker, "encode_step", None))
+    ):
+        raise TypeError("loader 必须返回 worker 或 (worker, processor)")
+    return worker, processor if processor is not None else loaded_processor
 
 
 class ExternalPythonWorker:
@@ -956,6 +800,7 @@ class _ExternalAdapterBase:
                     processor=processor,
                     prompt=self.prompt,
                 )
+                self.worker, self.processor = _unpack_loaded_worker(loaded, self.processor)
             except LongVideoAssetError:
                 raise
             except Exception as exc:
@@ -964,9 +809,6 @@ class _ExternalAdapterBase:
                     integration_id=self.integration_id,
                     code="model_load_failed",
                 ) from exc
-            self.worker, loaded_processor = _unpack_loaded_worker(loaded, self.processor)
-            if self.processor is None:
-                self.processor = loaded_processor
             self.implementation_source = "explicit_loader"
         elif self.worker is None and (entrypoint or type(self).default_entrypoint):
             selected_entrypoint = entrypoint or type(self).default_entrypoint
@@ -991,9 +833,7 @@ class _ExternalAdapterBase:
                         "prompt": self.prompt,
                     },
                 )
-                self.worker, loaded_processor = _unpack_loaded_worker(loaded, self.processor)
-                if self.processor is None:
-                    self.processor = loaded_processor
+                self.worker, self.processor = _unpack_loaded_worker(loaded, self.processor)
             except LongVideoAssetError:
                 raise
             except Exception as exc:
@@ -1071,14 +911,18 @@ class _ExternalAdapterBase:
                 integration_id=self.integration_id,
                 code="worker_protocol_error",
             )
-        return _invoke_fixed(
-            function,
+        return function(
             batch,
-            prompt=self.prompt,
-            stage=self.feature_stage,
-            train=train,
-            processor=self.processor,
-            device=self.device,
+            **_filtered_kwargs(
+                function,
+                {
+                    "prompt": self.prompt,
+                    "feature_stage": self.feature_stage,
+                    "train": train,
+                    "processor": self.processor,
+                    "device": self.device,
+                },
+            ),
         )
 
     def encode(self, batch: ClipBatch, train: bool = False) -> EncoderOutput:
@@ -1250,16 +1094,18 @@ class ExternalStreamingVideoAdapter(_ExternalAdapterBase, StreamingVideoEncoderA
         worker_state: Any = None
         function = getattr(self.worker, "init_state", None)
         if callable(function):
-            values = {
-                "video_id": video_id,
-                "prompt": self.prompt,
-                "feature_stage": self.feature_stage,
-            }
-            kwargs = _filtered_kwargs(function, values)
             try:
-                worker_state = _invoke_candidates(
-                    function,
-                    (((video_id,), kwargs), ((), kwargs)),
+                worker_state = function(
+                    video_id,
+                    **_filtered_kwargs(
+                        function,
+                        {
+                            "prompt": self.prompt,
+                            "feature_stage": self.feature_stage,
+                            "processor": self.processor,
+                            "device": self.device,
+                        },
+                    ),
                 )
             except Exception as exc:
                 raise LongVideoWorkerError(
@@ -1310,15 +1156,19 @@ class ExternalStreamingVideoAdapter(_ExternalAdapterBase, StreamingVideoEncoderA
                 integration_id=self.integration_id,
                 code="worker_protocol_error",
             )
-        return _invoke_stream(
-            function,
+        return function(
             chunk,
             state,
-            prompt=self.prompt,
-            stage=self.feature_stage,
-            compression=compression,
-            processor=self.processor,
-            device=self.device,
+            **_filtered_kwargs(
+                function,
+                {
+                    "prompt": self.prompt,
+                    "feature_stage": self.feature_stage,
+                    "compression": compression,
+                    "processor": self.processor,
+                    "device": self.device,
+                },
+            ),
         )
 
     def encode_step(
@@ -1487,18 +1337,18 @@ class ExternalStreamingVideoAdapter(_ExternalAdapterBase, StreamingVideoEncoderA
         function = getattr(self.worker, "finalize", None) if self.worker is not None else None
         if not callable(function):
             return None
-        values = {
-            "state": state,
-            "stream_state": state,
-            "worker_state": state.opaque,
-            "opaque": state.opaque,
-            "prompt": self.prompt,
-            "feature_stage": self.feature_stage,
-        }
-        kwargs = _filtered_kwargs(function, values)
         try:
-            raw = _invoke_candidates(
-                function, (((state,), kwargs), ((state.opaque,), kwargs), ((), kwargs))
+            raw = function(
+                state,
+                **_filtered_kwargs(
+                    function,
+                    {
+                        "prompt": self.prompt,
+                        "feature_stage": self.feature_stage,
+                        "processor": self.processor,
+                        "device": self.device,
+                    },
+                ),
             )
         except Exception as exc:
             raise LongVideoWorkerError(
