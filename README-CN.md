@@ -31,6 +31,8 @@ VADBench 用同一套数据、时间轴和产物协议编排 25 条视频模型/
 
 HERMES 公开工作面向 VideoQA，并没有证明在 UCF-Crime 上优于固定 clip encoder。这里把它作为“真实 decoder-KV 流式路径”的首个高风险研究基线，而不是现成的 VAD SOTA。
 
+2026-09-04 完成代码精简：生产代码净删 1,675 行，Windows/node3 全量测试通过，14 路真实权重 smoke 复核通过；删减边界、提交和验证证据见[精简计划与执行结果](docs/plans/2026-09-03-vadbench-code-simplification.md)。
+
 ## 三类缓存/压缩
 
 | 类型 | 代表 | 框架标识 | 能否直接称视觉 encoder KV cache |
