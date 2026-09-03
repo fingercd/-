@@ -19,11 +19,9 @@ from .base import (
     MissingLongVideoAssetError,
     StructuredLongVideoError,
 )
-from .infinipot_v import InfiniPotVAdapter
 from .longvu import LongVUAdapter
 from .ma_lmm import MALMMAdapter
 from .moviechat import MovieChatAdapter
-from .mukv import MuKVAdapter
 from .streaming_vlm import StreamingVLMAdapter
 from .videochat import VideoChatAdapter
 from .videochat_flash import VideoChatFlashAdapter
@@ -36,7 +34,6 @@ __all__ = [
     "ExternalPythonWorker",
     "ExternalStreamingVideoAdapter",
     "ExternalWorkerError",
-    "InfiniPotVAdapter",
     "LongVUAdapter",
     "LongVideoAssetError",
     "LongVideoWorkerError",
@@ -45,7 +42,6 @@ __all__ = [
     "MissingLongVideoAssetError",
     "StructuredLongVideoError",
     "MovieChatAdapter",
-    "MuKVAdapter",
     "StreamingVLMAdapter",
     "VideoChatAdapter",
     "VideoChatFlashAdapter",

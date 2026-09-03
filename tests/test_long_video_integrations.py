@@ -10,17 +10,17 @@ import pytest
 import yaml
 
 from vadbench.contracts import ClipBatch, EncoderOutput, StreamState
+from vadbench.environment_registry import load_encoder_candidates
+from vadbench.integrations.catalog import load_integration_catalog
 from vadbench.integrations.long_video.base import (
     DEFAULT_NEUTRAL_PROMPT,
     ExternalPythonWorker,
     LongVideoAssetError,
     LongVideoWorkerError,
 )
-from vadbench.integrations.long_video.infinipot_v import InfiniPotVAdapter
 from vadbench.integrations.long_video.longvu import LongVUAdapter
 from vadbench.integrations.long_video.ma_lmm import MALMMAdapter
 from vadbench.integrations.long_video.moviechat import MovieChatAdapter
-from vadbench.integrations.long_video.mukv import MuKVAdapter
 from vadbench.integrations.long_video.streaming_vlm import StreamingVLMAdapter
 from vadbench.integrations.long_video.videochat import VideoChatAdapter
 from vadbench.integrations.long_video.videochat_flash import VideoChatFlashAdapter
@@ -75,19 +75,14 @@ STREAM_TARGETS = (
         "vadbench.integrations.long_video.streaming_vlm:StreamingVLMAdapter",
         "decoder_contextual",
     ),
-    (
-        "infinipot_v",
-        InfiniPotVAdapter,
-        "vadbench.integrations.long_video.infinipot_v:InfiniPotVAdapter",
-        "decoder_contextual",
-    ),
-    (
-        "mukv",
-        MuKVAdapter,
-        "vadbench.integrations.long_video.mukv:MuKVAdapter",
-        "decoder_contextual",
-    ),
 )
+
+CANDIDATE_ONLY_CONFIGS = {
+    "uniformerv2": "uniformerv2.yaml",
+    "umt": "umt.yaml",
+    "infinipot_v": "infinipot-v.yaml",
+    "mukv": "mukv.yaml",
+}
 
 
 def _batch(*, start: int = 0, video_id: str = "surveillance") -> ClipBatch:
@@ -296,7 +291,7 @@ def test_streaming_targets_register_construct_and_advance_explicit_state(
 
 
 def test_non_identity_cache_policy_is_rejected_without_calling_worker() -> None:
-    adapter = MuKVAdapter(worker=_StreamWorker())
+    adapter = StreamingVLMAdapter(worker=_StreamWorker())
     state = adapter.init_state("surveillance")
     with pytest.raises(LongVideoWorkerError) as captured:
         adapter.encode_step(_batch(), state, compression="keep_recent")
@@ -443,7 +438,7 @@ def test_long_video_modules_remain_lightweight(monkeypatch: pytest.MonkeyPatch) 
     }
 
 
-def test_all_long_video_configs_and_locks_are_pinned_and_consistent() -> None:
+def test_registered_long_video_configs_and_locks_are_pinned_and_consistent() -> None:
     config_names = {
         "longvu": "longvu.yaml",
         "videochat": "videochat.yaml",
@@ -452,8 +447,6 @@ def test_all_long_video_configs_and_locks_are_pinned_and_consistent() -> None:
         "ma_lmm": "ma-lmm.yaml",
         "moviechat": "moviechat.yaml",
         "streaming_vlm": "streaming-vlm.yaml",
-        "infinipot_v": "infinipot-v.yaml",
-        "mukv": "mukv.yaml",
     }
     stages = {item[0]: item[3] for item in (*FIXED_TARGETS, *STREAM_TARGETS)}
     commit_pattern = re.compile(r"^[0-9a-f]{40}$")
@@ -483,3 +476,26 @@ def test_all_long_video_configs_and_locks_are_pinned_and_consistent() -> None:
             else "planned"
         )
         assert lock["weights"]["status"] == expected_weight_status
+
+
+def test_candidate_only_configs_and_locks_remain_research_records() -> None:
+    candidates = {item["id"]: item for item in load_encoder_candidates(PROJECT_ROOT)}
+    catalog = load_integration_catalog(
+        PROJECT_ROOT / "registry/encoder-integrations.yaml",
+        project_root=PROJECT_ROOT,
+    )
+
+    assert CANDIDATE_ONLY_CONFIGS.keys().isdisjoint(catalog.ids)
+    for encoder_id, file_name in CANDIDATE_ONLY_CONFIGS.items():
+        candidate = candidates[encoder_id]
+        config = yaml.safe_load(
+            (PROJECT_ROOT / "configs" / "encoders" / file_name).read_text(encoding="utf-8")
+        )
+        lock = yaml.safe_load((PROJECT_ROOT / candidate["upstream_lock"]).read_text(encoding="utf-8"))
+
+        assert candidate["registration_state"] == "candidate_only"
+        assert config["adapter"] == encoder_id
+        assert config["upstream_lock"] == candidate["upstream_lock"]
+        assert lock["integration"] == encoder_id
+        assert lock["source"]["commit"] == candidate["checkpoint"]["revision"]
+        assert lock["source"]["commit"] in lock["source"]["commit_url"]

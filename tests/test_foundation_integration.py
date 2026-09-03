@@ -13,22 +13,10 @@ from vadbench.integrations.foundation.base import (
     ExternalPythonFoundationBridge,
     FoundationAssetError,
     FoundationUpstreamError,
+    FoundationVideoAdapter,
     InProcessFoundationBridge,
 )
-from vadbench.integrations.foundation.internvideo2 import InternVideo2Adapter
-from vadbench.integrations.foundation.umt import UMTAdapter
-from vadbench.integrations.foundation.uniformerv2 import UniFormerV2Adapter
-from vadbench.integrations.foundation.videomamba import VideoMambaAdapter
-from vadbench.integrations.foundation.vjepa2 import VJEPA2Adapter
 from vadbench.registry import ENCODER_REGISTRY
-
-ADAPTERS = {
-    "umt": UMTAdapter,
-    "uniformerv2": UniFormerV2Adapter,
-    "internvideo2": InternVideo2Adapter,
-    "videomamba": VideoMambaAdapter,
-    "vjepa2": VJEPA2Adapter,
-}
 
 
 def _batch(*, batch_size: int = 2, frames: int = 4) -> ClipBatch:
@@ -94,9 +82,8 @@ def test_foundation_ids_construct_through_lazy_registry(adapter_id: str) -> None
     assert len(fake.calls) == 1
 
 
-@pytest.mark.parametrize("adapter_id", tuple(ADAPTERS))
-def test_foundation_bridge_normalizes_pooled_only_upstream(adapter_id: str) -> None:
-    adapter = ADAPTERS[adapter_id](encoder=_FakeUpstream(output_kind="pooled"))
+def test_foundation_bridge_normalizes_pooled_only_upstream() -> None:
+    adapter = FoundationVideoAdapter(encoder=_FakeUpstream(output_kind="pooled"))
     output = adapter.encode(_batch(batch_size=1, frames=2))
 
     assert output.features.shape == (1, 1, 6)
@@ -106,19 +93,14 @@ def test_foundation_bridge_normalizes_pooled_only_upstream(adapter_id: str) -> N
     assert output.timeline.source_frame_start.shape == (1, 1)
 
 
-@pytest.mark.parametrize("adapter_id", tuple(ADAPTERS))
-def test_missing_local_checkpoint_fails_closed(adapter_id: str, tmp_path: Path) -> None:
-    missing = tmp_path / adapter_id / "checkpoint"
+def test_missing_local_checkpoint_fails_closed(tmp_path: Path) -> None:
+    missing = tmp_path / "checkpoint"
     with pytest.raises(FoundationAssetError, match="不会自动联网"):
-        ADAPTERS[adapter_id](model_path=missing)
+        FoundationVideoAdapter(model_path=missing)
 
 
-@pytest.mark.parametrize("adapter_id", tuple(ADAPTERS))
-def test_loader_is_explicit_and_lazy_after_local_asset_check(
-    adapter_id: str, tmp_path: Path
-) -> None:
-    checkpoint = tmp_path / adapter_id / "checkpoint.bin"
-    checkpoint.parent.mkdir()
+def test_loader_is_explicit_and_lazy_after_local_asset_check(tmp_path: Path) -> None:
+    checkpoint = tmp_path / "checkpoint.bin"
     checkpoint.write_bytes(b"placeholder")
     calls: list[dict[str, Any]] = []
     fake = _FakeUpstream()
@@ -127,9 +109,9 @@ def test_loader_is_explicit_and_lazy_after_local_asset_check(
         calls.append({"model_path": model_path, "device": device})
         return fake
 
-    adapter = ADAPTERS[adapter_id](
+    adapter = FoundationVideoAdapter(
         model_path=checkpoint,
-        model_name=f"{adapter_id}-local",
+        model_name="foundation-local",
         device="cpu",
         loader=loader,
     )
@@ -156,7 +138,7 @@ def test_loader_without_explicit_signature_is_not_retried(tmp_path: Path) -> Non
             return _FakeUpstream()
 
     loader = OpaqueLoader()
-    adapter = UMTAdapter(model_path=checkpoint, loader=loader)
+    adapter = FoundationVideoAdapter(model_path=checkpoint, loader=loader)
     with pytest.raises(FoundationUpstreamError, match="可检查的显式签名"):
         adapter.encode(_batch(batch_size=1))
     assert loader.calls == 0
@@ -164,7 +146,7 @@ def test_loader_without_explicit_signature_is_not_retried(tmp_path: Path) -> Non
 
 def test_in_process_bridge_is_available_without_heavy_imports() -> None:
     fake = _FakeUpstream()
-    adapter = UMTAdapter(encoder=fake, runtime="in_process")
+    adapter = FoundationVideoAdapter(encoder=fake, runtime="in_process")
     assert isinstance(adapter.bridge, InProcessFoundationBridge)
     adapter.encode(_batch(batch_size=1))
 
@@ -199,15 +181,12 @@ def test_foundation_modules_do_not_import_model_libraries(monkeypatch: pytest.Mo
         return original_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", guarded_import)
-    # Classes are already imported above; constructing with a fake must still
-    # stay entirely within the light-weight bridge.
-    for adapter_class in ADAPTERS.values():
-        adapter_class(encoder=_FakeUpstream()).encode(_batch(batch_size=1))
+    FoundationVideoAdapter(encoder=_FakeUpstream()).encode(_batch(batch_size=1))
 
 
 def test_existing_local_asset_without_loader_reports_upstream_error(tmp_path: Path) -> None:
     checkpoint = tmp_path / "checkpoint.bin"
     checkpoint.write_bytes(b"placeholder")
-    adapter = UMTAdapter(model_path=checkpoint)
+    adapter = FoundationVideoAdapter(model_path=checkpoint)
     with pytest.raises(FoundationUpstreamError, match="未配置显式 upstream loader"):
         adapter.encode(_batch(batch_size=1))

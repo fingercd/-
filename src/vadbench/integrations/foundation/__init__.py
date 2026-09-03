@@ -13,8 +13,6 @@ from .base import (
     LazyFoundationBridge,
 )
 from .internvideo2 import InternVideo2Adapter
-from .umt import UMTAdapter
-from .uniformerv2 import UniFormerV2Adapter
 from .videomamba import VideoMambaAdapter
 from .vjepa2 import VJEPA2Adapter
 
@@ -28,8 +26,6 @@ __all__ = [
     "InProcessFoundationBridge",
     "InternVideo2Adapter",
     "LazyFoundationBridge",
-    "UMTAdapter",
-    "UniFormerV2Adapter",
     "VJEPA2Adapter",
     "VideoMambaAdapter",
 ]
