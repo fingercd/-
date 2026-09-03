@@ -603,9 +603,7 @@ def run_encoder_smoke_v2(
                         info=info,
                         feature_stage=feature_stage,
                     )
-                    record_output["aux"]["stream_telemetry"] = _json_safe(
-                        dict(step.telemetry)
-                    )
+                    record_output["aux"]["stream_telemetry"] = _json_safe(dict(step.telemetry))
                     outputs.append(record_output)
                     if not health.passed:
                         raise OutputHealthError("stream 输出健康检查失败", health=health.to_dict())
