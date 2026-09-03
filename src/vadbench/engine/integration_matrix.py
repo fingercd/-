@@ -596,26 +596,25 @@ def run_integration_matrix(
         item_dir.mkdir(parents=True, exist_ok=True)
         result_path = _path_inside(item_dir / "result.json", output_dir)
         log_path = _path_inside(item_dir / "run.log", output_dir)
+        item = {
+            "integration_id": record.id,
+            "display_name": record.display_name,
+            "runtime": record.environment.runtime,
+            "run_mode": record.run_mode,
+            "result_path": result_path.relative_to(root).as_posix()
+            if root in result_path.parents
+            else result_path.as_posix(),
+            "log_path": log_path.relative_to(root).as_posix()
+            if root in log_path.parents
+            else log_path.as_posix(),
+            "reused": False,
+            "preflight": None,
+            "error": None,
+        }
         existing = _read_existing_success(result_path)
         if existing is not None:
-            items.append(
-                {
-                    "integration_id": record.id,
-                    "display_name": record.display_name,
-                    "runtime": record.environment.runtime,
-                    "run_mode": record.run_mode,
-                    "status": "smoke_pass",
-                    "result_path": result_path.relative_to(root).as_posix()
-                    if root in result_path.parents
-                    else result_path.as_posix(),
-                    "log_path": log_path.relative_to(root).as_posix()
-                    if root in log_path.parents
-                    else log_path.as_posix(),
-                    "reused": True,
-                    "preflight": None,
-                    "error": None,
-                }
-            )
+            item.update(status="smoke_pass", reused=True)
+            items.append(item)
             continue
         preflight_result = None
         if not skip_preflight:
@@ -632,6 +631,7 @@ def run_integration_matrix(
                     "checks": {},
                     "reasons": [str(exc)],
                 }
+        item["preflight"] = preflight_result
         if preflight_result is not None and preflight_result.get("status") != "preflight_pass":
             result = _failure_document(
                 record,
@@ -649,46 +649,16 @@ def run_integration_matrix(
             )
             if write_results:
                 write_smoke_result_v2(result, result_path, output_root=output_dir)
-            items.append(
-                {
-                    "integration_id": record.id,
-                    "display_name": record.display_name,
-                    "runtime": record.environment.runtime,
-                    "run_mode": record.run_mode,
-                    "status": "blocked",
-                    "result_path": result_path.relative_to(root).as_posix()
-                    if root in result_path.parents
-                    else result_path.as_posix(),
-                    "log_path": log_path.relative_to(root).as_posix()
-                    if root in log_path.parents
-                    else log_path.as_posix(),
-                    "reused": False,
-                    "preflight": preflight_result,
-                    "error": result["error"],
-                }
-            )
+            item.update(status="blocked", error=result["error"])
+            items.append(item)
             continue
         if not execute:
-            items.append(
-                {
-                    "integration_id": record.id,
-                    "display_name": record.display_name,
-                    "runtime": record.environment.runtime,
-                    "run_mode": record.run_mode,
-                    "status": preflight_result.get("status", "preflight_pass")
-                    if preflight_result is not None
-                    else "preflight_pass",
-                    "result_path": result_path.relative_to(root).as_posix()
-                    if root in result_path.parents
-                    else result_path.as_posix(),
-                    "log_path": log_path.relative_to(root).as_posix()
-                    if root in log_path.parents
-                    else log_path.as_posix(),
-                    "reused": False,
-                    "preflight": preflight_result,
-                    "error": None,
-                }
+            item["status"] = (
+                preflight_result.get("status", "preflight_pass")
+                if preflight_result is not None
+                else "preflight_pass"
             )
+            items.append(item)
             continue
         item_config = build_experiment_config(record, base_config=base_config, project_root=root)
         context: dict[str, Any] = {
@@ -747,28 +717,13 @@ def run_integration_matrix(
                 write_smoke_result_v2(result, result_path, output_root=output_dir)
             item_status = "failed"
             item_error = result["error"]
-        items.append(
-            {
-                "integration_id": record.id,
-                "display_name": record.display_name,
-                "runtime": record.environment.runtime,
-                "run_mode": record.run_mode,
-                "status": item_status,
-                "result_path": result_path.relative_to(root).as_posix()
-                if root in result_path.parents
-                else result_path.as_posix(),
-                "log_path": log_path.relative_to(root).as_posix()
-                if root in log_path.parents
-                else log_path.as_posix(),
-                "reused": False,
-                "preflight": preflight_result,
-                "error": item_error,
-            }
-        )
+        item.update(status=item_status, error=item_error)
+        items.append(item)
     counts: dict[str, int] = {}
     for item in items:
         key = str(item["status"])
         counts[key] = counts.get(key, 0) + 1
+    git_commit, git_dirty = _git_commit(root)
     matrix = {
         "schema_version": MATRIX_SCHEMA_VERSION,
         "generated_at_utc": _utc_now(),
@@ -781,8 +736,8 @@ def run_integration_matrix(
         "counts": counts,
         "items": items,
         "provenance": {
-            "git_commit": _git_commit(root)[0],
-            "git_dirty": _git_commit(root)[1],
+            "git_commit": git_commit,
+            "git_dirty": git_dirty,
             "config_sha256": _config_hash(base_config),
             "catalog_version": CATALOG_V1_VERSION,
         },
