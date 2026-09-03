@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import gc
 import platform
+import sys
 from collections.abc import Callable, Mapping
 from dataclasses import asdict
 from datetime import datetime, timezone
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +20,7 @@ from vadbench.benchmark import (
     BenchmarkSettings,
     BenchmarkWorkload,
     assess_sampling_comparability,
-    run_benchmark_suite,
+    run_encoder_benchmark,
     write_performance_result,
 )
 from vadbench.config import load_experiment, load_yaml
@@ -99,10 +101,9 @@ def _case_experiment(
     encoder = dict(case_spec.get("encoder", {}))
     if device is not None:
         encoder["device"] = device
-    mode = str(case_spec["mode"])
     streaming = {
         **dict(experiment.get("streaming", {})),
-        "enabled": mode == "streaming",
+        "enabled": str(case_spec["mode"]) == "streaming",
     }
     if case_spec.get("compression") is not None:
         streaming["compression"] = dict(case_spec["compression"])
@@ -110,24 +111,15 @@ def _case_experiment(
 
 
 def _require_case_result(result: Mapping[str, Any], requirements: Mapping[str, Any]) -> None:
-    if not requirements:
-        return
-    repeats = result.get("repeats", [])
-    if not repeats:
-        raise RuntimeError(f"{result.get('name')}: benchmark 没有 repeat 结果")
-    checks = {
-        "native_compression_calls_min": "native_compression_calls",
-        "native_compression_applied_steps_min": "native_compression_applied_steps",
-    }
-    for requirement, field in checks.items():
-        if requirement not in requirements:
-            continue
-        observed = min(int(repeat["cache"][field]) for repeat in repeats)
-        expected = int(requirements[requirement])
-        if observed < expected:
-            raise RuntimeError(
-                f"{result.get('name')}: {field} 每 repeat 最小值 {observed} < {expected}"
-            )
+    for field in ("native_compression_calls", "native_compression_applied_steps"):
+        requirement = f"{field}_min"
+        if requirement in requirements:
+            observed = min(int(repeat["cache"][field]) for repeat in result["repeats"])
+            expected = int(requirements[requirement])
+            if observed < expected:
+                raise RuntimeError(
+                    f"{result.get('name')}: {field} 每 repeat 最小值 {observed} < {expected}"
+                )
 
 
 def _release_runtime() -> None:
@@ -179,43 +171,32 @@ def run_benchmark_plan(
         device=device or benchmark.get("device"),
     )
 
-    def decoded_factory() -> np.ndarray:
-        return decode_fn(selected_video, indices)
-
     case_results: list[dict[str, Any]] = []
-    machine: Mapping[str, Any] | None = None
 
-    for raw_case in case_specs:
-        case_spec = dict(raw_case)
+    for case_spec in case_specs:
         experiment = _case_experiment(case_spec, root, device=settings.device)
         adapter, definition = encoder_factory(experiment, project_root=root)
-        grouping = dict(case_spec["grouping"])
+        mode = str(case_spec["mode"])
+        grouping = case_spec["grouping"]
         units = int(grouping["units"])
         frames_per_unit = int(grouping["frames_per_unit"])
         if units * frames_per_unit != sampled_frames:
             raise ValueError(f"{case_spec['name']}: grouping 与 sampled_frames 不一致")
 
-        def preprocess(
-            decoded: np.ndarray,
-            *,
-            mode: str = str(case_spec["mode"]),
-            units_value: int = units,
-            frames_value: int = frames_per_unit,
-        ) -> ClipBatch | tuple[ClipBatch, ...]:
-            return _batch_groups(
-                np.asarray(decoded),
-                indices=indices,
-                fps=info.fps,
-                video_id=selected_video.stem,
-                mode=mode,
-                units=units_value,
-                frames_per_unit=frames_value,
-            )
+        preprocess = partial(
+            _batch_groups,
+            indices=indices,
+            fps=info.fps,
+            video_id=selected_video.stem,
+            mode=mode,
+            units=units,
+            frames_per_unit=frames_per_unit,
+        )
 
         workload = BenchmarkWorkload(
             name=str(input_spec.get("sampling_protocol", "benchmark")),
-            mode=str(case_spec["mode"]),
-            decode=decoded_factory,
+            mode=mode,
+            decode=partial(decode_fn, selected_video, indices),
             preprocess=preprocess,
             sampling={
                 **input_spec,
@@ -226,9 +207,7 @@ def run_benchmark_plan(
             video_seconds=video_seconds,
             task=str(input_spec.get("task", "encoder_performance_only")),
         )
-        compression = (
-            compression_from_experiment(experiment) if case_spec["mode"] == "streaming" else None
-        )
+        compression = compression_from_experiment(experiment) if mode == "streaming" else None
         case = BenchmarkCase(
             name=str(case_spec["name"]),
             adapter=adapter,
@@ -241,14 +220,11 @@ def run_benchmark_plan(
             },
         )
         try:
-            single = run_benchmark_suite((case,), settings)
-            case_result = single["cases"][0]
-            _require_case_result(case_result, dict(case_spec.get("result_requirements", {})))
+            case_result = run_encoder_benchmark(case, settings)
+            _require_case_result(case_result, case_spec.get("result_requirements", {}))
             case_results.append(case_result)
-            machine = single["provenance"]["machine"]
         finally:
-            del case
-            del adapter
+            del case, adapter
             _release_runtime()
 
     result = {
@@ -257,7 +233,16 @@ def run_benchmark_plan(
         "settings": asdict(settings),
         "comparison": assess_sampling_comparability(case_results),
         "provenance": {
-            "machine": dict(machine or {"hostname": platform.node()}),
+            "machine": {
+                "hostname": platform.node(),
+                "system": platform.system(),
+                "release": platform.release(),
+                "machine": platform.machine(),
+                "processor": platform.processor(),
+                "python_version": platform.python_version(),
+                "python_implementation": platform.python_implementation(),
+                "python_executable": sys.executable,
+            },
             "plan": str(_resolve(root, plan_path)),
         },
         "cases": case_results,

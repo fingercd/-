@@ -16,7 +16,7 @@ from vadbench.data.manifest import (
     load_manifest_jsonl,
     validate_manifest,
 )
-from vadbench.engine.runner import HeadOnlyTrainingConfig
+from vadbench.engine.runner import HeadOnlyTrainingConfig, normalize_task_name
 from vadbench.engine.train import load_checkpoint, move_to_device
 from vadbench.features import FeatureStore, atomic_write_jsonl
 from vadbench.tasks import build_task
@@ -28,21 +28,6 @@ try:
 except ImportError:  # pragma: no cover - covered by the minimal environment.
     torch = None  # type: ignore[assignment]
     TORCH_AVAILABLE = False
-
-
-def _task_name(value: str) -> str:
-    normalized = value.strip().lower().replace("-", "_")
-    if normalized in {"weak", "weak_mil", "weakly_supervised", "mil", "wsvad"}:
-        return "wsvad"
-    if normalized in {
-        "strong",
-        "supervised",
-        "temporal",
-        "temporal_supervised",
-        "frame_supervised",
-    }:
-        return "temporal"
-    raise ValueError(f"unknown task kind: {value!r}")
 
 
 def _records(
@@ -196,7 +181,7 @@ def predict_feature_head(
         raise TypeError("strict_coverage must be boolean")
     raw_config = config if isinstance(config, Mapping) else None
     settings = _settings(config)
-    task_name = _task_name(settings.task)
+    task_name = normalize_task_name(settings.task)
     checkpoint_metadata = _checkpoint_metadata(checkpoint_path)
     configured_fingerprint = _configured_fingerprint(raw_config)
     checkpoint_fingerprint = checkpoint_metadata.get("encoder_fingerprint")
@@ -233,7 +218,7 @@ def predict_feature_head(
     ):
         raise ValueError("checkpoint feature_level does not match prediction config")
     if checkpoint_metadata.get("task") is not None and (
-        _task_name(str(checkpoint_metadata["task"])) != task_name
+        normalize_task_name(str(checkpoint_metadata["task"])) != task_name
     ):
         raise ValueError("checkpoint task does not match prediction config")
 

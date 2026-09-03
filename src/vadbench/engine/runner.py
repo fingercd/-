@@ -25,7 +25,7 @@ except ImportError:  # pragma: no cover - covered by the minimal environment.
     TORCH_AVAILABLE = False
 
 
-def _task_name(value: str) -> str:
+def normalize_task_name(value: str) -> str:
     normalized = value.strip().lower().replace("-", "_")
     if normalized in {"weak", "weak_mil", "weakly_supervised", "mil", "wsvad"}:
         return "wsvad"
@@ -41,15 +41,13 @@ def _task_name(value: str) -> str:
 
 
 def _float_metric(value: Any) -> float:
-    if TORCH_AVAILABLE and torch.is_tensor(value):
-        value = value.detach().cpu()
-        if value.numel() != 1:
-            raise ValueError("runner metrics must be scalar")
-        return float(value.item())
-    array = np.asarray(value)
-    if array.size != 1:
+    value = (
+        value.detach().cpu() if TORCH_AVAILABLE and torch.is_tensor(value) else np.asarray(value)
+    )
+    size = value.numel() if TORCH_AVAILABLE and torch.is_tensor(value) else value.size
+    if size != 1:
         raise ValueError("runner metrics must be scalar")
-    return float(array.reshape(-1)[0])
+    return float(value.item())
 
 
 def _manifest_identity(value: Any) -> dict[str, Any]:
@@ -88,7 +86,7 @@ class HeadOnlyTrainingConfig:
     assume_unannotated_is_normal: bool = True
 
     def __post_init__(self) -> None:
-        _task_name(self.task)
+        normalize_task_name(self.task)
         if self.batch_size <= 0 or self.epochs <= 0:
             raise ValueError("batch_size and epochs must be positive")
         if self.learning_rate <= 0:
@@ -110,18 +108,10 @@ class HeadOnlyTrainingConfig:
     def from_mapping(cls, config: Mapping[str, Any]) -> HeadOnlyTrainingConfig:
         """Read either a flat runner mapping or the repository experiment YAML shape."""
 
-        task_section = config.get("task", {})
-        training = config.get("training", {})
-        sampler = config.get("sampler", {})
-        encoder = config.get("encoder", {})
-        if task_section is None:
-            task_section = {}
-        if training is None:
-            training = {}
-        if sampler is None:
-            sampler = {}
-        if encoder is None:
-            encoder = {}
+        sections = (config.get(name) for name in ("task", "training", "sampler", "encoder"))
+        task_section, training, sampler, encoder = (
+            {} if section is None else section for section in sections
+        )
         if not all(
             isinstance(item, Mapping) for item in (task_section, training, sampler, encoder)
         ):
@@ -213,43 +203,51 @@ class TrainingRunResult:
         }
 
 
-def _mean_metrics(sums: Mapping[str, float], counts: Mapping[str, int]) -> dict[str, float]:
-    return {name: sums[name] / counts[name] for name in sorted(sums) if counts.get(name, 0) > 0}
+def _accumulate_epoch(
+    result: Any,
+    losses: list[float],
+    metrics: dict[str, tuple[float, int]],
+    phase: str,
+) -> None:
+    loss = _float_metric(result.loss)
+    if not np.isfinite(loss):
+        raise FloatingPointError(f"non-finite {phase} loss: {loss}")
+    losses.append(loss)
+    for name, raw_value in result.metrics.items():
+        value = _float_metric(raw_value)
+        if np.isfinite(value):
+            total, count = metrics.get(name, (0.0, 0))
+            metrics[name] = total + value, count + 1
+
+
+def _epoch_summary(
+    losses: list[float], metrics: Mapping[str, tuple[float, int]], count_name: str, phase: str
+) -> dict[str, Any]:
+    if not losses:
+        raise ValueError(f"{phase} DataLoader produced no batches")
+    return {
+        "loss": float(np.mean(losses)),
+        count_name: len(losses),
+        "metrics": {name: total / count for name, (total, count) in sorted(metrics.items())},
+    }
 
 
 def _evaluate_epoch(model: Any, loader: Any, device: Any) -> dict[str, Any]:
     model.eval()
     losses: list[float] = []
-    sums: dict[str, float] = {}
-    counts: dict[str, int] = {}
+    metrics: dict[str, tuple[float, int]] = {}
     with torch.no_grad():
         for batch in loader:
-            batch = move_to_device(batch, device)
-            output = model.training_step(batch)
-            loss = getattr(output, "loss", None)
-            if loss is None and isinstance(output, Mapping):
-                loss = output.get("loss")
-            if loss is None:
-                raise TypeError("task.training_step must expose loss during validation")
-            value = _float_metric(loss)
-            if not np.isfinite(value):
-                raise FloatingPointError(f"non-finite validation loss: {value}")
-            losses.append(value)
-            raw_metrics = getattr(output, "metrics", None)
-            if raw_metrics is None and isinstance(output, Mapping):
-                raw_metrics = output.get("metrics", {})
-            for name, metric in dict(raw_metrics or {}).items():
-                metric_value = _float_metric(metric)
-                if np.isfinite(metric_value):
-                    sums[name] = sums.get(name, 0.0) + metric_value
-                    counts[name] = counts.get(name, 0) + 1
-    if not losses:
-        raise ValueError("validation DataLoader produced no batches")
-    return {
-        "loss": float(np.mean(losses)),
-        "batches": len(losses),
-        "metrics": _mean_metrics(sums, counts),
-    }
+            result = model.training_step(move_to_device(batch, device))
+            _accumulate_epoch(result, losses, metrics, "validation")
+    return _epoch_summary(losses, metrics, "batches", "validation")
+
+
+def _logged_losses(epoch: Mapping[str, Any]) -> dict[str, float]:
+    losses = {"train_loss": epoch["train"]["loss"]}
+    if "validation" in epoch:
+        losses["validation_loss"] = epoch["validation"]["loss"]
+    return losses
 
 
 def _resolved_output_dir(
@@ -294,12 +292,8 @@ def train_feature_head(
     if not TORCH_AVAILABLE:
         raise ImportError("PyTorch is required for training; install the train extra")
     raw_config = config if isinstance(config, Mapping) else None
-    settings = (
-        config
-        if isinstance(config, HeadOnlyTrainingConfig)
-        else HeadOnlyTrainingConfig.from_mapping(config)
-    )
-    task_name = _task_name(settings.task)
+    settings = HeadOnlyTrainingConfig.from_mapping(config) if raw_config is not None else config
+    task_name = normalize_task_name(settings.task)
     supervision = "weak" if task_name == "wsvad" else "strong"
 
     random.seed(settings.seed)
@@ -310,9 +304,7 @@ def train_feature_head(
     generator = torch.Generator()
     generator.manual_seed(settings.seed)
 
-    store = (
-        feature_store if isinstance(feature_store, FeatureStore) else FeatureStore(feature_store)
-    )
+    store = FeatureStore(feature_store) if isinstance(feature_store, (str, Path)) else feature_store
     dataset_options = {
         "encoder_fingerprint": encoder_fingerprint,
         "supervision": supervision,
@@ -324,15 +316,13 @@ def train_feature_head(
         "assume_unannotated_is_normal": settings.assume_unannotated_is_normal,
     }
     train_dataset = FeatureDataset(store, train_manifest, **dataset_options)
-    validation_dataset = (
-        None
-        if validation_manifest is None
-        else FeatureDataset(
+    validation_dataset = None
+    if validation_manifest is not None:
+        validation_dataset = FeatureDataset(
             store,
             validation_manifest,
             **{**dataset_options, "encoder_fingerprint": train_dataset.encoder_fingerprint},
         )
-    )
     if (
         validation_dataset is not None
         and validation_dataset.feature_dim != train_dataset.feature_dim
@@ -347,17 +337,15 @@ def train_feature_head(
         pin_memory=settings.pin_memory,
         generator=generator,
     )
-    validation_loader = (
-        None
-        if validation_dataset is None
-        else build_feature_dataloader(
+    validation_loader = None
+    if validation_dataset is not None:
+        validation_loader = build_feature_dataloader(
             validation_dataset,
             batch_size=settings.batch_size,
             shuffle=False,
             num_workers=settings.num_workers,
             pin_memory=settings.pin_memory,
         )
-    )
     model = build_task(
         task_name,
         None,
@@ -388,8 +376,7 @@ def train_feature_head(
     stopped_for_max_steps = False
     for epoch in range(1, settings.epochs + 1):
         losses: list[float] = []
-        metric_sums: dict[str, float] = {}
-        metric_counts: dict[str, int] = {}
+        metrics: dict[str, tuple[float, int]] = {}
         for batch in train_loader:
             batch = move_to_device(batch, resolved_device)
             result = train_one_step(
@@ -400,39 +387,21 @@ def train_feature_head(
                 max_grad_norm=settings.max_grad_norm,
             )
             global_step = result.step
-            losses.append(result.loss)
-            for name, metric in result.metrics.items():
-                metric_value = _float_metric(metric)
-                if np.isfinite(metric_value):
-                    metric_sums[name] = metric_sums.get(name, 0.0) + metric_value
-                    metric_counts[name] = metric_counts.get(name, 0) + 1
+            _accumulate_epoch(result, losses, metrics, "training")
             if settings.max_steps is not None and global_step >= settings.max_steps:
                 stopped_for_max_steps = True
                 break
-        if not losses:
-            raise ValueError("training DataLoader produced no batches")
         epoch_record: dict[str, Any] = {
             "epoch": epoch,
             "global_step": global_step,
-            "train": {
-                "loss": float(np.mean(losses)),
-                "steps": len(losses),
-                "metrics": _mean_metrics(metric_sums, metric_counts),
-            },
+            "train": _epoch_summary(losses, metrics, "steps", "training"),
         }
         if validation_loader is not None:
             epoch_record["validation"] = _evaluate_epoch(model, validation_loader, resolved_device)
         epoch_history.append(epoch_record)
         if artifact_store is not None and hasattr(artifact_store, "append_metrics"):
             artifact_store.append_metrics(
-                {
-                    "train_loss": epoch_record["train"]["loss"],
-                    **(
-                        {}
-                        if "validation" not in epoch_record
-                        else {"validation_loss": epoch_record["validation"]["loss"]}
-                    ),
-                },
+                _logged_losses(epoch_record),
                 split="train",
                 step=global_step,
                 metadata={"epoch": epoch},
@@ -454,9 +423,9 @@ def train_feature_head(
         "global_step": global_step,
         "max_steps": settings.max_steps,
         "train_manifest": _manifest_identity(train_manifest),
-        "validation_manifest": (
-            None if validation_manifest is None else _manifest_identity(validation_manifest)
-        ),
+        "validation_manifest": None
+        if validation_manifest is None
+        else _manifest_identity(validation_manifest),
         "config": _config_metadata(settings),
         "epochs": epoch_history,
     }
@@ -482,16 +451,8 @@ def train_feature_head(
     history_path = run_dir / "history.json"
     atomic_write_json(history_path, history)
     if artifact_store is not None and hasattr(artifact_store, "write_metrics"):
-        final_epoch = epoch_history[-1]
         artifact_store.write_metrics(
-            {
-                "train_loss": final_epoch["train"]["loss"],
-                **(
-                    {}
-                    if "validation" not in final_epoch
-                    else {"validation_loss": final_epoch["validation"]["loss"]}
-                ),
-            },
+            _logged_losses(epoch_history[-1]),
             split="train",
             step=global_step,
             metadata={
@@ -514,13 +475,10 @@ def train_feature_head(
     )
 
 
-run_head_only_training = train_feature_head
-
-
 __all__ = [
     "HeadOnlyTrainingConfig",
     "TORCH_AVAILABLE",
     "TrainingRunResult",
-    "run_head_only_training",
+    "normalize_task_name",
     "train_feature_head",
 ]
