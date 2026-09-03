@@ -16,9 +16,7 @@ from vadbench.integrations.common import (
     normalize_feature_tensor,
     pool_feature_sequence,
     select_feature_tensor,
-    validate_finite_output,
     validate_output_health,
-    validate_timeline,
 )
 
 
@@ -180,39 +178,9 @@ def test_finite_checks_preserve_machine_readable_failure_evidence() -> None:
         aux={"feature_stage": "pooled", "sequence_source": "pooled_singleton"},
     )
     with pytest.raises(OutputHealthError) as captured:
-        validate_finite_output(output)
-    assert captured.value.health["features"]["finite"] is False
-    assert captured.value.health["features"]["non_finite_count"] == 1
-    assert captured.value.health["pooled"]["finite"] is False
-
-    with pytest.raises(OutputHealthError) as captured:
         validate_output_health(output, video_duration_seconds=1.0)
     assert captured.value.health["passed"] is False
     assert captured.value.health["features"]["finite"] is False
-
-
-def test_timeline_checks_token_count_upper_bounds_and_required_evidence() -> None:
-    timeline = _timeline(tokens=2)
-    with pytest.raises(OutputHealthError, match="token 数"):
-        validate_timeline(timeline, expected_tokens=3)
-    with pytest.raises(OutputHealthError, match="超出源视频"):
-        validate_timeline(
-            timeline,
-            expected_tokens=2,
-            video_duration_seconds=0.75,
-        )
-
-    no_frames = TokenTimeline(
-        start_s=np.array([[0.0, 0.5]]),
-        end_s=np.array([[0.5, 1.0]]),
-    )
-    with pytest.raises(OutputHealthError, match="上界检查"):
-        validate_timeline(
-            no_frames,
-            expected_tokens=2,
-            video_num_frames=10,
-            require_video_bounds=True,
-        )
 
 
 def test_output_health_can_infer_identity_for_legacy_output() -> None:

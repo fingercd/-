@@ -744,6 +744,12 @@ class FeatureStore:
     put = write
     write_feature = write
 
+    def _load_npy(self, reference: ArrayReference, mmap_mode: str | None) -> np.ndarray:
+        path = self._resolve(reference.path)
+        if _sha256_file(path) != reference.sha256:
+            raise OSError(f"feature array checksum mismatch: {path}")
+        return np.load(path, allow_pickle=False, mmap_mode=mmap_mode)
+
     def load_bundle(
         self, record: FeatureRecord | Mapping[str, Any], *, mmap_mode: str | None = None
     ) -> dict[str, np.ndarray]:
@@ -765,10 +771,7 @@ class FeatureStore:
 
         loaded: dict[str, np.ndarray] = {}
         for name, reference in record.arrays.items():
-            path = self._resolve(reference.path)
-            if _sha256_file(path) != reference.sha256:
-                raise OSError(f"feature array checksum mismatch: {path}")
-            loaded[name] = np.load(path, allow_pickle=False, mmap_mode=mmap_mode)
+            loaded[name] = self._load_npy(reference, mmap_mode)
         return loaded
 
     def load_array(
@@ -783,11 +786,7 @@ class FeatureStore:
         if name not in record.arrays:
             raise KeyError(name)
         if record.storage_format == "npy":
-            reference = record.arrays[name]
-            path = self._resolve(reference.path)
-            if _sha256_file(path) != reference.sha256:
-                raise OSError(f"feature array checksum mismatch: {path}")
-            return np.load(path, allow_pickle=False, mmap_mode=mmap_mode)
+            return self._load_npy(record.arrays[name], mmap_mode)
         return self.load_bundle(record)[name]
 
     def load_record(

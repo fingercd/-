@@ -619,67 +619,6 @@ def inspect_timeline_health(
     )
 
 
-def validate_timeline(
-    timeline: TokenTimeline,
-    *,
-    expected_tokens: int,
-    video_duration_seconds: float | None = None,
-    video_num_frames: int | None = None,
-    require_video_bounds: bool = False,
-    tolerance_seconds: float = 1e-6,
-) -> TimelineHealth:
-    """Return timeline health or raise with the same JSON-ready evidence."""
-
-    health = inspect_timeline_health(
-        timeline,
-        expected_tokens=expected_tokens,
-        video_duration_seconds=video_duration_seconds,
-        video_num_frames=video_num_frames,
-        tolerance_seconds=tolerance_seconds,
-    )
-    reasons: list[str] = []
-    if not health.token_count_matches:
-        reasons.append("timeline token 数与 features 不一致")
-    if not health.monotonic:
-        reasons.append("timeline 不是单调不减")
-    if not health.in_video_range:
-        reasons.append("timeline 超出源视频范围")
-    if require_video_bounds and not health.video_bounds_checked:
-        reasons.append("未提供可执行的源视频上界检查")
-    if reasons:
-        raise OutputHealthError("；".join(reasons), health=health.to_dict())
-    return health
-
-
-def validate_finite_output(
-    output: EncoderOutput,
-    *,
-    require_pooled: bool = True,
-) -> tuple[TensorHealth, TensorHealth | None]:
-    """Validate finite features and pooled values, preserving failure evidence."""
-
-    if not isinstance(output, EncoderOutput):
-        raise ContractError("output 必须是 EncoderOutput")
-    features = inspect_tensor_health(output.features, name="features")
-    pooled = None if output.pooled is None else inspect_tensor_health(output.pooled, name="pooled")
-    reasons: list[str] = []
-    if not features.finite:
-        reasons.append("features 含 NaN/Inf 或非数值")
-    if require_pooled and pooled is None:
-        reasons.append("pooled 缺失")
-    elif pooled is not None and not pooled.finite:
-        reasons.append("pooled 含 NaN/Inf 或非数值")
-    if reasons:
-        raise OutputHealthError(
-            "；".join(reasons),
-            health={
-                "features": features.to_dict(),
-                "pooled": None if pooled is None else pooled.to_dict(),
-            },
-        )
-    return features, pooled
-
-
 def _resolve_output_identity(
     output: EncoderOutput,
     *,
@@ -782,7 +721,5 @@ __all__ = [
     "normalize_sequence_source",
     "pool_feature_sequence",
     "select_feature_tensor",
-    "validate_finite_output",
     "validate_output_health",
-    "validate_timeline",
 ]

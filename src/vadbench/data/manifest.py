@@ -15,6 +15,8 @@ from enum import Enum
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
+from vadbench.features import atomic_write_jsonl
+
 MANIFEST_SCHEMA_VERSION = 1
 
 
@@ -537,19 +539,7 @@ def write_manifest_jsonl(
 
     items = validate_manifest(records, dataset_root=dataset_root, require_files=require_files)
     output_path = Path(path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary_path = output_path.with_name(f".{output_path.name}.tmp")
-    with temporary_path.open("w", encoding="utf-8", newline="\n") as handle:
-        for record in items:
-            payload = json.dumps(
-                record.to_dict(),
-                ensure_ascii=False,
-                allow_nan=False,
-                separators=(",", ":"),
-            )
-            handle.write(payload)
-            handle.write("\n")
-    temporary_path.replace(output_path)
+    atomic_write_jsonl(output_path, (record.to_dict() for record in items))
     return output_path
 
 

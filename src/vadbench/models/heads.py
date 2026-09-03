@@ -112,6 +112,18 @@ if TORCH_AVAILABLE:
             raise ValueError(f"mask must have shape {tuple(expected)}, got {tuple(mask.shape)}")
         return mask.to(device=features.device, dtype=torch.bool)
 
+    def _classifier(feature_dim: int, hidden_dim: int | None, dropout: float) -> nn.Sequential:
+        if hidden_dim is None:
+            return nn.Sequential(nn.Dropout(dropout), nn.Linear(feature_dim, 1))
+        if hidden_dim <= 0:
+            raise ValueError("hidden_dim must be positive")
+        return nn.Sequential(
+            nn.Linear(feature_dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, 1),
+        )
+
     class AttentionMILHead(nn.Module):
         """Gated-attention MIL classifier for video-level supervision.
 
@@ -194,17 +206,7 @@ if TORCH_AVAILABLE:
                 raise ValueError("dropout must be in [0, 1)")
             self.feature_dim = int(feature_dim)
             self.k = k
-            if hidden_dim is None:
-                self.classifier = nn.Sequential(nn.Dropout(dropout), nn.Linear(feature_dim, 1))
-            else:
-                if hidden_dim <= 0:
-                    raise ValueError("hidden_dim must be positive")
-                self.classifier = nn.Sequential(
-                    nn.Linear(feature_dim, hidden_dim),
-                    nn.GELU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_dim, 1),
-                )
+            self.classifier = _classifier(feature_dim, hidden_dim, dropout)
 
         def _k_for(self, valid_count: int) -> int:
             if isinstance(self.k, int):
@@ -258,17 +260,7 @@ if TORCH_AVAILABLE:
             if not 0.0 <= dropout < 1.0:
                 raise ValueError("dropout must be in [0, 1)")
             self.feature_dim = int(feature_dim)
-            if hidden_dim is None:
-                self.classifier = nn.Sequential(nn.Dropout(dropout), nn.Linear(feature_dim, 1))
-            else:
-                if hidden_dim <= 0:
-                    raise ValueError("hidden_dim must be positive")
-                self.classifier = nn.Sequential(
-                    nn.Linear(feature_dim, hidden_dim),
-                    nn.GELU(),
-                    nn.Dropout(dropout),
-                    nn.Linear(hidden_dim, 1),
-                )
+            self.classifier = _classifier(feature_dim, hidden_dim, dropout)
 
         def forward(self, features: Tensor, mask: Tensor | None = None) -> Tensor:
             features = _validate_features(features, self.feature_dim)
