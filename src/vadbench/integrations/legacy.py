@@ -213,39 +213,6 @@ def _resolve_local_path(
     return resolved
 
 
-def _filtered_kwargs(function: Callable[..., Any], values: Mapping[str, Any]) -> dict[str, Any]:
-    try:
-        parameters = inspect.signature(function).parameters
-    except (TypeError, ValueError):
-        return {}
-    if any(item.kind is inspect.Parameter.VAR_KEYWORD for item in parameters.values()):
-        return dict(values)
-    return {key: value for key, value in values.items() if key in parameters}
-
-
-def _invoke_candidates(
-    function: Callable[..., Any],
-    candidates: Sequence[tuple[tuple[Any, ...], Mapping[str, Any]]],
-) -> Any:
-    """Bind before calling so an upstream TypeError is never silently retried."""
-
-    try:
-        signature = inspect.signature(function)
-    except (TypeError, ValueError):
-        args, kwargs = candidates[0]
-        return function(*args, **dict(kwargs))
-    for args, kwargs in candidates:
-        try:
-            signature.bind(*args, **dict(kwargs))
-        except TypeError:
-            continue
-        return function(*args, **dict(kwargs))
-    raise TypeError(
-        f"无法匹配 legacy callable {getattr(function, '__name__', function)!r} 的参数；"
-        f"签名为 {signature}"
-    )
-
-
 def _invoke_loader(
     loader: Callable[..., Any],
     *,
@@ -257,29 +224,18 @@ def _invoke_loader(
 ) -> Any:
     values = {
         "checkout_path": None if checkout_path is None else str(checkout_path),
-        "checkout": None if checkout_path is None else str(checkout_path),
-        "root": None if checkout_path is None else str(checkout_path.parent),
         "checkpoint_path": None if checkpoint_path is None else str(checkpoint_path),
-        "checkpoint": None if checkpoint_path is None else str(checkpoint_path),
-        "model_path": None if checkpoint_path is None else str(checkpoint_path),
-        "weights_path": None if checkpoint_path is None else str(checkpoint_path),
         "prototxt_path": None if prototxt_path is None else str(prototxt_path),
-        "deploy_prototxt": None if prototxt_path is None else str(prototxt_path),
-        "prototxt": None if prototxt_path is None else str(prototxt_path),
-        "deploy": None if prototxt_path is None else str(prototxt_path),
         "device": device,
         "feature_layer": feature_layer,
     }
-    kwargs = _filtered_kwargs(loader, values)
-    positional_path = None if checkpoint_path is None else str(checkpoint_path)
-    return _invoke_candidates(
-        loader,
-        (
-            ((), kwargs),
-            ((positional_path,), {}),
-            ((None if checkout_path is None else str(checkout_path), positional_path), {}),
-        ),
+    parameters = inspect.signature(loader).parameters
+    kwargs = (
+        values
+        if any(item.kind is inspect.Parameter.VAR_KEYWORD for item in parameters.values())
+        else {key: value for key, value in values.items() if key in parameters}
     )
+    return loader(**kwargs)
 
 
 def _load_entrypoint(
@@ -779,12 +735,11 @@ class LegacyVideoAdapter(VideoEncoderAdapter):
 
         if self.encoder is None or not (
             callable(getattr(self.encoder, "encode", None))
-            or callable(getattr(self.encoder, "forward", None))
             or callable(self.encoder)
-            or hasattr(self.encoder, "blobs")
+            or (hasattr(self.encoder, "blobs") and callable(getattr(self.encoder, "forward", None)))
         ):
             raise LegacyWorkerError(
-                "C3D legacy encoder 缺少 encode/forward/callable/blobs 接口",
+                "C3D legacy encoder 必须提供 encode/callable 或 Caffe blobs+forward 接口",
                 code="worker_protocol_error",
             )
         self._prepare_encoder()
@@ -929,24 +884,7 @@ class LegacyVideoAdapter(VideoEncoderAdapter):
             )
         test_mode = getattr(caffe, "TEST", 0)
         try:
-            return _invoke_candidates(
-                net_constructor,
-                (
-                    ((str(prototxt), str(checkpoint), test_mode), {}),
-                    (
-                        (),
-                        {"prototxt": str(prototxt), "weights": str(checkpoint), "phase": test_mode},
-                    ),
-                    (
-                        (),
-                        {
-                            "prototxt_path": str(prototxt),
-                            "checkpoint_path": str(checkpoint),
-                            "mode": test_mode,
-                        },
-                    ),
-                ),
-            )
+            return net_constructor(str(prototxt), str(checkpoint), test_mode)
         except Exception as exc:
             raise LegacyWorkerError(
                 f"Caffe Net 初始化失败：{exc}",
@@ -980,48 +918,13 @@ class LegacyVideoAdapter(VideoEncoderAdapter):
             "implementation_source": self.implementation_source,
         }
 
-    def _call_generic(self, model_input: np.ndarray, batch: ClipBatch, *, train: bool) -> Any:
-        assert self.encoder is not None
-        function: Callable[..., Any] | None = None
-        for name in ("encode", "forward"):
-            candidate = getattr(self.encoder, name, None)
-            if callable(candidate):
-                function = candidate
-                break
-        if function is None and callable(self.encoder):
-            function = self.encoder
-        if function is None:
-            raise LegacyWorkerError(
-                "C3D legacy encoder 缺少 encode/forward/callable 接口",
-                code="worker_protocol_error",
-            )
-        values = {
-            "frames": model_input,
-            "clip": model_input,
-            "input": model_input,
-            "data": model_input,
-            "video_frames": model_input,
-            "model_input": model_input,
-            "batch": batch,
-            "clip_batch": batch,
-            "train": train,
-            "device": self.device,
-            "feature_layer": self.feature_layer,
-        }
-        kwargs = _filtered_kwargs(function, values)
-        return _invoke_candidates(
-            function,
-            (
-                ((), kwargs),
-                ((model_input,), {}),
-                ((batch,), {}),
-            ),
-        )
+    def _call_encoder(self, model_input: np.ndarray, *, train: bool) -> Any:
+        encode = getattr(self.encoder, "encode", None)
+        if callable(encode):
+            return encode(model_input, train=train)
+        return self.encoder(model_input)
 
-    def _call_caffe_net(
-        self, model_input: np.ndarray, batch: ClipBatch, *, train: bool
-    ) -> tuple[Any, str, Any]:
-        _ = train
+    def _call_caffe_net(self, model_input: np.ndarray) -> tuple[Any, str, Any]:
         assert self.encoder is not None
         blobs = getattr(self.encoder, "blobs", None)
         if not isinstance(blobs, Mapping) or self.data_blob not in blobs:
@@ -1074,14 +977,14 @@ class LegacyVideoAdapter(VideoEncoderAdapter):
         source: str | None = None
         try:
             if callable(getattr(self.encoder, "encode", None)):
-                raw_container = self._call_generic(model_input, batch, train=train)
+                raw_container = self._call_encoder(model_input, train=train)
                 raw = raw_container
             elif hasattr(self.encoder, "blobs") and callable(
                 getattr(self.encoder, "forward", None)
             ):
-                raw, source, raw_container = self._call_caffe_net(model_input, batch, train=train)
+                raw, source, raw_container = self._call_caffe_net(model_input)
             else:
-                raw_container = self._call_generic(model_input, batch, train=train)
+                raw_container = self._call_encoder(model_input, train=train)
                 raw = raw_container
             features, source = _normalize_c3d_feature(
                 raw,

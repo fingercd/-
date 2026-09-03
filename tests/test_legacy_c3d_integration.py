@@ -36,9 +36,11 @@ def _batch(*, frames: int = 16, batch_size: int = 1) -> ClipBatch:
 class _FakeEncoder:
     def __init__(self) -> None:
         self.last_input: Any = None
+        self.last_train: bool | None = None
 
-    def encode(self, frames: np.ndarray) -> dict[str, np.ndarray]:
+    def encode(self, frames: np.ndarray, *, train: bool) -> dict[str, np.ndarray]:
         self.last_input = frames
+        self.last_train = train
         batch = int(frames.shape[0])
         return {"fc6": np.arange(batch * 4, dtype=np.float32).reshape(batch, 4)}
 
@@ -73,6 +75,7 @@ def test_fake_encoder_receives_contiguous_c3d_bcthw_and_emits_contract() -> None
 
     assert encoder.last_input.shape == (1, 3, 16, 112, 112)
     assert encoder.last_input.dtype == np.float32
+    assert encoder.last_train is False
     assert output.features.shape == (1, 1, 4)
     assert output.pooled.shape == (1, 4)
     assert output.timeline.start_s.tolist() == [[0.0]]
@@ -115,7 +118,7 @@ def test_caffe_fc_blob_is_selected_explicitly_and_flattened_to_singleton() -> No
 )
 def test_container_output_must_name_the_declared_feature_layer(raw_output: Any) -> None:
     class Encoder:
-        def encode(self, frames: np.ndarray) -> Any:
+        def encode(self, frames: np.ndarray, *, train: bool) -> Any:
             return raw_output
 
     with pytest.raises(LegacyWorkerError) as captured:
@@ -126,13 +129,65 @@ def test_container_output_must_name_the_declared_feature_layer(raw_output: Any) 
 
 def test_direct_tensor_output_keeps_its_real_model_output_type() -> None:
     class Encoder:
-        def encode(self, frames: np.ndarray) -> np.ndarray:
+        def encode(self, frames: np.ndarray, *, train: bool) -> np.ndarray:
             return np.ones((len(frames), 4), dtype=np.float32)
 
     output = LegacyVideoAdapter(encoder=Encoder()).encode(_batch())
 
     assert output.features.shape == (1, 1, 4)
     assert output.aux["model_output_type"] == "numpy.ndarray"
+
+
+def test_encode_receives_train_once_and_callable_receives_only_bcthw() -> None:
+    encoder = _FakeEncoder()
+    LegacyVideoAdapter(encoder=encoder).encode(_batch(), train=True)
+    assert encoder.last_train is True
+
+    class CallableEncoder:
+        def __init__(self) -> None:
+            self.input_shape: tuple[int, ...] | None = None
+
+        def __call__(self, frames: np.ndarray) -> dict[str, np.ndarray]:
+            self.input_shape = frames.shape
+            return {"fc6": np.ones((len(frames), 4), dtype=np.float32)}
+
+    callable_encoder = CallableEncoder()
+    output = LegacyVideoAdapter(encoder=callable_encoder).encode(_batch())
+    assert callable_encoder.input_shape == (1, 3, 16, 112, 112)
+    assert output.features.shape == (1, 1, 4)
+
+
+def test_encoder_type_error_is_not_retried_with_callable_fallback() -> None:
+    class Encoder:
+        def __init__(self) -> None:
+            self.encode_calls = 0
+            self.callable_calls = 0
+
+        def encode(self, frames: np.ndarray, *, train: bool) -> Any:
+            self.encode_calls += 1
+            raise TypeError("upstream encode failure")
+
+        def __call__(self, frames: np.ndarray) -> dict[str, np.ndarray]:
+            self.callable_calls += 1
+            return {"fc6": np.ones((len(frames), 4), dtype=np.float32)}
+
+    encoder = Encoder()
+    with pytest.raises(LegacyWorkerError, match="upstream encode failure") as captured:
+        LegacyVideoAdapter(encoder=encoder).encode(_batch())
+
+    assert captured.value.code == "forward_failed"
+    assert (encoder.encode_calls, encoder.callable_calls) == (1, 0)
+
+
+def test_forward_only_non_caffe_encoder_is_rejected() -> None:
+    class Encoder:
+        def forward(self, frames: np.ndarray) -> dict[str, np.ndarray]:
+            return {"fc6": np.ones((len(frames), 4), dtype=np.float32)}
+
+    with pytest.raises(LegacyWorkerError) as captured:
+        LegacyVideoAdapter(encoder=Encoder())
+
+    assert captured.value.code == "worker_protocol_error"
 
 
 def test_short_or_long_input_is_defensively_normalized_to_profile() -> None:
@@ -177,13 +232,14 @@ def test_explicit_loader_receives_only_local_asset_paths(tmp_path: Path) -> None
         checkpoint_path: str,
         prototxt_path: str,
         device: str,
-        **_: Any,
+        feature_layer: str,
     ) -> _FakeEncoder:
         seen.update(
             checkout=checkout_path,
             checkpoint=checkpoint_path,
             prototxt=prototxt_path,
             device=device,
+            feature_layer=feature_layer,
         )
         return _FakeEncoder()
 
@@ -201,7 +257,49 @@ def test_explicit_loader_receives_only_local_asset_paths(tmp_path: Path) -> None
         "checkpoint": str(checkpoint.resolve()),
         "prototxt": str(prototxt.resolve()),
         "device": "cpu",
+        "feature_layer": "fc6",
     }
+
+
+def test_loader_type_error_is_called_once_without_positional_retry() -> None:
+    calls = 0
+
+    def loader(*, device: str) -> Any:
+        nonlocal calls
+        calls += 1
+        raise TypeError(f"loader failed on {device}")
+
+    with pytest.raises(LegacyWorkerError, match="loader failed on cpu") as captured:
+        LegacyVideoAdapter(loader=loader)
+
+    assert captured.value.code == "model_load_failed"
+    assert calls == 1
+
+
+def test_caffe_net_uses_the_pinned_positional_signature(tmp_path: Path) -> None:
+    checkout = tmp_path / "C3D"
+    checkpoint = tmp_path / "model.caffemodel"
+    prototxt = checkout / "deploy.prototxt"
+    checkout.mkdir()
+    checkpoint.write_bytes(b"weights")
+    prototxt.write_text("name: 'c3d'\n", encoding="utf-8")
+    calls: list[tuple[str, str, int]] = []
+
+    def net_constructor(prototxt_arg: str, checkpoint_arg: str, mode: int, /) -> _FakeCaffeNet:
+        calls.append((prototxt_arg, checkpoint_arg, mode))
+        return _FakeCaffeNet(batch_size=1)
+
+    caffe = SimpleNamespace(Net=net_constructor, TEST=17)
+    adapter = LegacyVideoAdapter(
+        project_root=tmp_path,
+        checkout_path=checkout,
+        checkpoint_path=checkpoint,
+        prototxt_path=prototxt,
+        caffe_module=caffe,
+    )
+
+    assert adapter.encode(_batch()).features.shape == (1, 1, 4)
+    assert calls == [(str(prototxt.resolve()), str(checkpoint.resolve()), 17)]
 
 
 def test_missing_assets_fail_closed_with_structured_error(tmp_path: Path) -> None:
