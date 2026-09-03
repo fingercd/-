@@ -452,7 +452,7 @@ git diff --check
 python -m vadbench integrations list
 python -m vadbench integrations matrix \
   --config configs/smoke/encoder-matrix.yaml \
-  --validate-existing
+  --video data/smoke/mlvu-surveil-8.mp4
 ```
 
 **验收标准：**

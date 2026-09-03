@@ -71,7 +71,11 @@ class _Stream:
 
     def encode_step(self, chunk, state, train=False, compression=None):
         next_state = state.replace(step_index=state.step_index + 1)
-        return StreamStep(_output(chunk, next_state.step_index), next_state)
+        return StreamStep(
+            _output(chunk, next_state.step_index),
+            next_state,
+            telemetry={"step": next_state.step_index},
+        )
 
     def finalize(self, state):
         return None
@@ -124,6 +128,7 @@ def test_stream_v2_requires_two_steps_and_records_state(monkeypatch, fake_video:
     assert result["status"] == "smoke_pass"
     assert result["streaming"]["state_steps"] == [1, 2]
     assert len(result["outputs"]) == 2
+    assert result["outputs"][1]["aux"]["stream_telemetry"] == {"step": 2}
 
 
 def test_v2_writer_is_atomic_contained_and_does_not_replace_success(tmp_path: Path) -> None:

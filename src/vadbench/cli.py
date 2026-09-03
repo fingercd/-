@@ -39,7 +39,7 @@ from vadbench.orchestration import (
     iter_microbatches,
 )
 from vadbench.registry import ENCODER_REGISTRY, RegistryError
-from vadbench.smoke import run_encoder_smoke, write_smoke_result
+from vadbench.smoke import run_encoder_smoke_v2, write_smoke_result_v2
 
 DEFAULT_REGISTRY = Path("registry/checkpoints.yaml")
 
@@ -146,7 +146,6 @@ def _parser() -> argparse.ArgumentParser:
     integrations_matrix.add_argument("--limit", type=int)
     integrations_matrix.add_argument("--execute", action="store_true")
     integrations_matrix.add_argument("--skip-preflight", action="store_true")
-    integrations_matrix.add_argument("--validate-existing", action="store_true")
     integrations_matrix.set_defaults(handler=_integrations_matrix)
 
     manifest = sub.add_parser("manifest", help="数据清单导入与校验")
@@ -420,7 +419,6 @@ def _integrations_matrix(args: argparse.Namespace) -> int:
         output_root=args.output_root,
         matrix_path=args.matrix_path,
         skip_preflight=args.skip_preflight,
-        validate_existing=args.validate_existing,
         write_results=True,
         execute=args.execute,
         **_integration_filter_args(args),
@@ -797,7 +795,7 @@ def _smoke(args: argparse.Namespace) -> int:
             **config,
             "streaming": {**config.get("streaming", {}), "chunk_frames": args.chunk_frames},
         }
-    result = run_encoder_smoke(
+    result = run_encoder_smoke_v2(
         config,
         args.video,
         project_root=Path.cwd(),
@@ -809,9 +807,9 @@ def _smoke(args: argparse.Namespace) -> int:
         / "smoke"
         / f"{config['encoder']['adapter']}.json"
     )
-    output_path = write_smoke_result(result, output)
+    output_path = write_smoke_result_v2(result, output, overwrite_success=True)
     print(json.dumps({**result, "output": str(output_path)}, ensure_ascii=False, indent=2))
-    return 0
+    return {"smoke_pass": 0, "blocked": 2}.get(result.get("status"), 1)
 
 
 def _benchmark(args: argparse.Namespace) -> int:

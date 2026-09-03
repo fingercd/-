@@ -117,7 +117,6 @@ def filter_integrations(
     *,
     project_root: str | Path = ".",
     integration_ids: Sequence[str] | None = None,
-    ids: Sequence[str] | None = None,
     statuses: Sequence[str] | None = None,
     families: Sequence[str] | None = None,
     run_modes: Sequence[str] | None = None,
@@ -128,7 +127,7 @@ def filter_integrations(
 
     root = Path(project_root).expanduser().resolve()
     selected_catalog = _coerce_catalog(catalog, root)
-    selected_ids = set(integration_ids or ids or ())
+    selected_ids = set(integration_ids or ())
     selected_statuses = set(statuses or ())
     selected_families = set(families or ())
     selected_modes = set(run_modes or ())
@@ -154,9 +153,6 @@ def filter_integrations(
     if unknown:
         raise ValueError(f"catalog 中不存在 integration：{sorted(unknown)}")
     return records if limit is None else records[:limit]
-
-
-select_integrations = filter_integrations
 
 
 def _invoke_hook(
@@ -279,7 +275,6 @@ def preflight_integrations(
     *,
     project_root: str | Path = ".",
     integration_ids: Sequence[str] | None = None,
-    ids: Sequence[str] | None = None,
     statuses: Sequence[str] | None = None,
     families: Sequence[str] | None = None,
     run_modes: Sequence[str] | None = None,
@@ -291,7 +286,6 @@ def preflight_integrations(
         catalog,
         project_root=project_root,
         integration_ids=integration_ids,
-        ids=ids,
         statuses=statuses,
         families=families,
         run_modes=run_modes,
@@ -301,9 +295,6 @@ def preflight_integrations(
     return tuple(
         preflight_integration(record, project_root=project_root, hook=hook) for record in records
     )
-
-
-preflight = preflight_integrations
 
 
 def _load_config(config: Mapping[str, Any] | str | Path | None) -> dict[str, Any]:
@@ -557,7 +548,6 @@ def run_integration_matrix(
     *,
     project_root: str | Path = ".",
     integration_ids: Sequence[str] | None = None,
-    ids: Sequence[str] | None = None,
     statuses: Sequence[str] | None = None,
     families: Sequence[str] | None = None,
     run_modes: Sequence[str] | None = None,
@@ -571,21 +561,18 @@ def run_integration_matrix(
     external_python_runner: Callable[..., Any] | None = None,
     preflight_hook: Callable[..., Any] | None = None,
     skip_preflight: bool = False,
-    validate_existing: bool = False,
     command: Sequence[str] | None = None,
     write_results: bool = True,
     execute: bool = True,
 ) -> dict[str, Any]:
     """串行运行选中的 integration；单项失败不会中断后续项。"""
 
-    del validate_existing
     root = Path(project_root).expanduser().resolve()
     base_config = _load_config(config)
     selected = filter_integrations(
         catalog,
         project_root=root,
         integration_ids=integration_ids,
-        ids=ids,
         statuses=statuses,
         families=families,
         run_modes=run_modes,
@@ -817,10 +804,6 @@ def run_integration_matrix(
     return matrix
 
 
-run_matrix = run_integration_matrix
-build_integration_matrix = run_integration_matrix
-
-
 def write_matrix_result(
     result: Mapping[str, Any],
     path: str | Path,
@@ -870,13 +853,9 @@ def write_matrix_result(
 __all__ = [
     "MATRIX_SCHEMA_VERSION",
     "build_experiment_config",
-    "build_integration_matrix",
     "filter_integrations",
-    "preflight",
     "preflight_integration",
     "preflight_integrations",
     "run_integration_matrix",
-    "run_matrix",
-    "select_integrations",
     "write_matrix_result",
 ]

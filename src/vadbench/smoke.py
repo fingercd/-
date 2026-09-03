@@ -43,19 +43,8 @@ from vadbench.integrations.catalog import (
 from vadbench.integrations.common import (
     OutputHealthError,
     inspect_output_health,
-    validate_output_health,
 )
 from vadbench.orchestration import compression_from_experiment, create_encoder_from_experiment
-
-
-def _shape(value: Any | None) -> list[int] | None:
-    if value is None:
-        return None
-    return [int(item) for item in value.shape]
-
-
-def _dtype(value: Any | None) -> str | None:
-    return None if value is None else str(getattr(value, "dtype", "unknown"))
 
 
 def _gpu_peak_bytes() -> int | None:
@@ -67,131 +56,6 @@ def _gpu_peak_bytes() -> int | None:
     except ImportError:  # pragma: no cover - optional dependency
         pass
     return None
-
-
-def run_encoder_smoke(
-    config: Mapping[str, Any],
-    video_path: str | Path,
-    *,
-    project_root: str | Path = ".",
-    max_chunks: int = 2,
-) -> dict[str, Any]:
-    """加载真实 adapter/权重并执行固定 clip 或连续 chunk 前向。"""
-
-    if max_chunks <= 0:
-        raise ValueError("max_chunks 必须大于 0")
-    path = Path(video_path).resolve()
-    if not path.is_file():
-        raise FileNotFoundError(path)
-    info = probe_video(path)
-    adapter, definition = create_encoder_from_experiment(config, project_root=project_root)
-    try:
-        import torch
-
-        if torch.cuda.is_available():
-            torch.cuda.reset_peak_memory_stats()
-    except ImportError:  # pragma: no cover
-        pass
-
-    started = time.perf_counter()
-    streaming = config.get("streaming", {})
-    if streaming.get("enabled", False):
-        record = VideoManifestRecord(
-            video_id=path.stem,
-            path=path.name,
-            split="test",
-            category="Smoke",
-            is_anomaly=False,
-            num_frames=info.num_frames,
-            fps=info.fps,
-            duration_seconds=info.duration_seconds,
-            metadata={"smoke_input": True},
-        )
-        chunks = iter_streaming_chunk_batches(
-            (record,),
-            path.parent,
-            chunk_frames=int(streaming.get("chunk_frames", 16)),
-            sample_fps=(
-                float(streaming["sample_fps"]) if streaming.get("sample_fps") is not None else None
-            ),
-        )
-        state = adapter.init_state(record.video_id)
-        policy = compression_from_experiment(config)
-        steps: list[dict[str, Any]] = []
-        for chunk in islice(chunks, max_chunks):
-            step = adapter.encode_step(chunk, state, train=False, compression=policy)
-            state = step.state
-            steps.append(
-                {
-                    "step_index": state.step_index,
-                    "features_shape": _shape(None if step.output is None else step.output.features),
-                    "features_dtype": _dtype(None if step.output is None else step.output.features),
-                    "pooled_shape": _shape(None if step.output is None else step.output.pooled),
-                    "cache_layers": len(state.caches),
-                    "cache_tokens_max": max(
-                        (view.sequence_length for view in state.caches.values()), default=0
-                    ),
-                    "telemetry": dict(step.telemetry),
-                }
-            )
-        adapter.finalize(state)
-        result: dict[str, Any] = {
-            "mode": "streaming",
-            "steps": steps,
-            "chunks_requested": max_chunks,
-            "chunks_completed": len(steps),
-        }
-    else:
-        frames = adapter.capabilities.fixed_num_frames
-        if frames is None:
-            raise ValueError("fixed adapter 未声明 fixed_num_frames")
-        sampler = config.get("sampler", {})
-        sample = sample_fixed_clip(
-            info.num_frames,
-            clip_frames=frames,
-            frame_stride=int(sampler.get("frame_stride", 1)),
-            position="center",
-        )
-        batch = build_clip_batch(
-            path,
-            path.stem,
-            (sample,),
-            metadata={"clip_ids": [f"{path.stem}:smoke"], "clip_indices": [0]},
-        )
-        output = adapter.encode(batch, train=False)
-        result = {
-            "mode": "fixed",
-            "features_shape": _shape(output.features),
-            "features_dtype": _dtype(output.features),
-            "pooled_shape": _shape(output.pooled),
-            "timeline_tokens": output.timeline.num_tokens,
-            "aux": dict(output.aux),
-        }
-
-    result.update(
-        {
-            "adapter": config["encoder"]["adapter"],
-            "encoder_definition": definition.get("name"),
-            "video": {
-                "path": str(path),
-                "num_frames": info.num_frames,
-                "fps": info.fps,
-                "duration_seconds": info.duration_seconds,
-                "width": info.width,
-                "height": info.height,
-            },
-            "elapsed_seconds": time.perf_counter() - started,
-            "peak_gpu_memory_bytes": _gpu_peak_bytes(),
-        }
-    )
-    return result
-
-
-def write_smoke_result(result: Mapping[str, Any], path: str | Path) -> Path:
-    output = Path(path)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    return output
 
 
 SMOKE_V2_SCHEMA_VERSION = "vadbench.encoder-smoke.v2"
@@ -555,33 +419,6 @@ def _is_blocking_exception(exc: BaseException) -> bool:
     return isinstance(exc, (FileNotFoundError, ModuleNotFoundError, ImportError, PermissionError))
 
 
-def _without_compression(config: Mapping[str, Any]) -> dict[str, Any]:
-    """Force the v2 smoke path to a lossless/no-compression run."""
-
-    result = dict(config)
-    encoder = dict(result.get("encoder", {})) if isinstance(result.get("encoder"), Mapping) else {}
-    params = dict(encoder.get("params", {})) if isinstance(encoder.get("params"), Mapping) else {}
-    adapter_id = str(encoder.get("adapter", ""))
-    if adapter_id in {"hermes_llava_ov", "streaming_vlm", "infinipot_v", "mukv"}:
-        params["native_compression_mode"] = "off"
-    if params:
-        encoder["params"] = params
-    result["encoder"] = encoder
-    streaming = (
-        dict(result.get("streaming", {})) if isinstance(result.get("streaming"), Mapping) else {}
-    )
-    compression = (
-        dict(streaming.get("compression", {}))
-        if isinstance(streaming.get("compression"), Mapping)
-        else {}
-    )
-    if streaming.get("enabled", False):
-        compression["policy"] = "identity"
-        streaming["compression"] = compression
-    result["streaming"] = streaming
-    return result
-
-
 def _output_record(
     output: EncoderOutput,
     *,
@@ -597,15 +434,6 @@ def _output_record(
         require_pooled=True,
         require_video_bounds=True,
     )
-    if health.passed:
-        validate_output_health(
-            output,
-            video_duration_seconds=float(info.duration_seconds),
-            video_num_frames=int(info.num_frames),
-            feature_stage=feature_stage,
-            require_pooled=True,
-            require_video_bounds=True,
-        )
     payload = health.to_dict()
     payload.update({"step_index": int(step_index), "aux": _json_safe(dict(output.aux))})
     return payload, health
@@ -623,9 +451,6 @@ def run_encoder_smoke_v2(
     integration_id: str | None = None,
     catalog: IntegrationCatalog | None = None,
     adapter_instance: Any | None = None,
-    adapter: Any | None = None,
-    output_path: str | Path | None = None,
-    output_root: str | Path | None = None,
 ) -> dict[str, Any]:
     """Run one encoder and return a schema-v2, failure-preserving document."""
 
@@ -636,18 +461,13 @@ def run_encoder_smoke_v2(
         isinstance(max_chunks, bool) or not isinstance(max_chunks, int) or max_chunks <= 0
     ):
         raise ValueError("max_chunks 必须是正整数或 None")
-    if adapter_instance is not None and adapter is not None:
-        raise ValueError("adapter_instance 与 adapter 只能指定一个")
-    if adapter is not None:
-        adapter_instance = adapter
     started_at = _utc_now()
     started = time.perf_counter()
     run_id = run_id or (
         f"smoke-{_datetime.datetime.now(_datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
         f"-{uuid.uuid4().hex[:8]}"
     )
-    original_config = dict(config)
-    runtime_config = _without_compression(config)
+    runtime_config = config
     record = _load_record(runtime_config, root, catalog, integration_id)
     encoder_cfg = runtime_config.get("encoder", {})
     encoder_cfg = encoder_cfg if isinstance(encoder_cfg, Mapping) else {}
@@ -782,6 +602,9 @@ def run_encoder_smoke_v2(
                         step_index=state.step_index,
                         info=info,
                         feature_stage=feature_stage,
+                    )
+                    record_output["aux"]["stream_telemetry"] = _json_safe(
+                        dict(step.telemetry)
                     )
                     outputs.append(record_output)
                     if not health.passed:
@@ -918,7 +741,7 @@ def run_encoder_smoke_v2(
         "provenance": {
             "git_commit": commit,
             "git_dirty": dirty,
-            "config_sha256": _canonical_sha256(original_config),
+            "config_sha256": _canonical_sha256(config),
             "catalog_version": CATALOG_V1_VERSION,
         },
         "error": error,
@@ -938,12 +761,6 @@ def run_encoder_smoke_v2(
             actual_log.write_text(line + "\n", encoding="utf-8")
         except (OSError, ValueError):
             pass
-    if output_path is not None:
-        write_smoke_result_v2(
-            result,
-            output_path,
-            output_root=(root / "outputs") if output_root is None else output_root,
-        )
     return result
 
 
@@ -1003,8 +820,6 @@ def write_smoke_result_v2(
 __all__ = [
     "CATALOG_V1_VERSION",
     "SMOKE_V2_SCHEMA_VERSION",
-    "run_encoder_smoke",
     "run_encoder_smoke_v2",
-    "write_smoke_result",
     "write_smoke_result_v2",
 ]

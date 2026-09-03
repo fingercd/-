@@ -6,12 +6,6 @@ from pathlib import Path
 import yaml
 
 import vadbench.cli as cli
-from vadbench.smoke import write_smoke_result
-
-
-def test_write_smoke_result_is_utf8_json(tmp_path: Path) -> None:
-    output = write_smoke_result({"adapter": "测试", "ok": True}, tmp_path / "smoke.json")
-    assert '"adapter": "测试"' in output.read_text(encoding="utf-8")
 
 
 def test_cli_smoke_writes_selected_output(tmp_path: Path, monkeypatch, capsys) -> None:
@@ -29,9 +23,9 @@ def test_cli_smoke_writes_selected_output(tmp_path: Path, monkeypatch, capsys) -
 
     def fake_smoke(config, *args, **kwargs):
         captured["config"] = config
-        return {"adapter": "fake", "mode": "fixed", "ok": True}
+        return {"status": "smoke_pass", "encoder": {"id": "fake"}}
 
-    monkeypatch.setattr(cli, "run_encoder_smoke", fake_smoke)
+    monkeypatch.setattr(cli, "run_encoder_smoke_v2", fake_smoke)
     output = tmp_path / "result.json"
     assert (
         cli.main(
@@ -51,6 +45,6 @@ def test_cli_smoke_writes_selected_output(tmp_path: Path, monkeypatch, capsys) -
         )
         == 0
     )
-    assert json.loads(output.read_text(encoding="utf-8"))["ok"] is True
+    assert '"status": "smoke_pass"' in output.read_text(encoding="utf-8")
     assert json.loads(capsys.readouterr().out)["output"] == str(output)
     assert captured["config"]["encoder"]["params"] == {"device": "cpu", "kv_size": 64}
