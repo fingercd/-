@@ -28,6 +28,7 @@ import numpy as np
 
 from vadbench.contracts import (
     ClipBatch,
+    ContractError,
     EncoderCapabilities,
     EncoderOutput,
     TokenTimeline,
@@ -35,7 +36,12 @@ from vadbench.contracts import (
     validate_clip_for_capabilities,
     validate_encoder_output,
 )
-from vadbench.integrations.common import normalize_encoder_output, validate_output_health
+from vadbench.integrations.common import (
+    normalize_encoder_output,
+    normalize_feature_tensor,
+    select_feature_tensor,
+    validate_output_health,
+)
 
 # Keep this object byte-for-byte equivalent (semantically) to the catalog's
 # generic fixed-clip capability declaration.  The 16x112 values belong to the
@@ -54,25 +60,12 @@ DEFAULT_CAPABILITIES = EncoderCapabilities(
 )
 C3D_CAPABILITIES = DEFAULT_CAPABILITIES
 
-_FEATURE_KEYS = (
-    "fc6",
-    "fc7",
-    "fc_features",
-    "features",
-    "feature",
-    "pooler_output",
-    "pooled_output",
-    "pooled",
-    "last_hidden_state",
-    "output",
-)
 _KNOWN_PROTOTXT_NAMES = (
     "c3d_feature_extraction.prototxt",
     "deploy.prototxt",
     "c3d_deploy.prototxt",
     "train_val.prototxt",
 )
-_MISSING = object()
 
 
 def _jsonable(value: Any) -> Any:
@@ -168,19 +161,6 @@ MissingLegacyAssetError = LegacyAssetError
 MissingAssetError = LegacyAssetError
 ExternalAssetError = LegacyAssetError
 StructuredLegacyError = LegacyIntegrationError
-
-
-def _shape(value: Any) -> tuple[int, ...] | None:
-    raw = getattr(value, "shape", None)
-    if raw is None:
-        try:
-            raw = np.asarray(value).shape
-        except Exception:
-            return None
-    try:
-        return tuple(int(item) for item in raw)
-    except (TypeError, ValueError):
-        return None
 
 
 def _module_root(value: Any) -> str:
@@ -545,139 +525,66 @@ def _timeline_for_batch(batch: ClipBatch, token_count: int) -> TokenTimeline:
     )
 
 
-def _as_feature_tensor(value: Any, *, batch_size: int) -> Any | None:
-    """Convert a legacy activation to [B,D] or [B,S,D] without torch import."""
-
-    if value is None:
-        return None
-    if isinstance(value, Mapping):
-        return None
-    if hasattr(value, "data") and not hasattr(value, "shape"):
-        return _as_feature_tensor(value.data, batch_size=batch_size)
-    shape = _shape(value)
-    if shape is None or not shape:
-        return None
-    candidate = value
-    if len(shape) == 1:
-        if batch_size != 1:
-            return None
-        if hasattr(candidate, "reshape"):
-            candidate = candidate.reshape(1, shape[0])
-        else:
-            candidate = np.asarray(candidate).reshape(1, shape[0])
-        shape = _shape(candidate)
-    if shape is None:
-        return None
-    if shape[0] != batch_size:
-        if batch_size != 1:
-            return None
-        # A single-sample activation without an explicit batch dimension.
-        array = _to_numpy(candidate)
-        candidate = array.reshape(1, -1)
-        shape = _shape(candidate)
-    if shape is None or len(shape) < 2:
-        return None
-    if len(shape) == 2:
-        return candidate
-    if len(shape) == 3:
-        return candidate
-    # Caffe fc blobs commonly appear as [B,D,1,1,1].  Flatten all non-batch
-    # axes; this also handles injected CNN blocks deterministically.
-    if hasattr(candidate, "reshape"):
-        return candidate.reshape(batch_size, -1)
-    return np.asarray(candidate).reshape(batch_size, -1)
-
-
-def _find_feature(
-    value: Any,
+def _normalize_c3d_feature(
+    raw_output: Any,
     *,
     batch_size: int,
-    preferred: str,
-    seen: set[int] | None = None,
-) -> tuple[Any, str] | None:
-    if value is None:
-        return None
-    candidate = _as_feature_tensor(value, batch_size=batch_size)
-    if candidate is not None:
-        return candidate, "model_output"
-    if seen is None:
-        seen = set()
-    identity = id(value)
-    if identity in seen:
-        return None
-    seen.add(identity)
-    if isinstance(value, Mapping):
-        keys = (preferred,) + tuple(item for item in _FEATURE_KEYS if item != preferred)
-        for key in keys:
-            if key in value:
-                found = _find_feature(
-                    value[key], batch_size=batch_size, preferred=preferred, seen=seen
-                )
-                if found is not None:
-                    return found[0], key if found[1] == "model_output" else f"{key}.{found[1]}"
-        # Avoid silently treating classifier probability/logit fields as a
-        # representation.  Unknown fields are inspected only if their value
-        # itself is a tensor-like activation.
-        for key, item in value.items():
-            if str(key).lower() in {"logits", "prob", "probs", "score", "scores"}:
-                continue
-            found = _find_feature(item, batch_size=batch_size, preferred=preferred, seen=seen)
-            if found is not None:
-                return found[0], f"{key}.{found[1]}"
-        return None
-    if isinstance(value, (tuple, list)) and not isinstance(value, (str, bytes, bytearray)):
-        # C3D wrappers commonly return ``(fc6, logits)``.  For an explicitly
-        # named fc feature, inspect the tuple from the front so a trailing
-        # classifier tensor cannot silently become the representation.  Other
-        # generic legacy outputs retain the conventional "last activation"
-        # preference.
-        order = (
-            tuple(enumerate(value))
-            if preferred.lower() in {"fc6", "fc7", "fc_features"}
-            else tuple(reversed(tuple(enumerate(value))))
+    feature_layer: str,
+    sequence_source: str | None = None,
+) -> tuple[Any, str]:
+    """Select one declared C3D activation and normalize it through ``common``."""
+
+    candidate = raw_output
+    source = sequence_source
+    if source is None and isinstance(raw_output, Mapping):
+        if feature_layer not in raw_output:
+            raise LegacyWorkerError(
+                f"legacy encoder 输出缺少 feature_layer={feature_layer!r}",
+                code="invalid_output",
+            )
+        candidate = raw_output[feature_layer]
+        source = feature_layer
+    elif source is None:
+        named = getattr(raw_output, feature_layer, None)
+        if named is not None:
+            candidate = named
+            source = feature_layer
+        elif not hasattr(raw_output, "shape"):
+            raise LegacyWorkerError(
+                f"legacy encoder 输出缺少 feature_layer={feature_layer!r}",
+                code="invalid_output",
+            )
+
+    if not hasattr(candidate, "shape") and hasattr(candidate, "data"):
+        candidate = candidate.data
+    if not hasattr(candidate, "shape"):
+        raise LegacyWorkerError(
+            f"feature_layer={feature_layer!r} 必须直接提供数组或张量",
+            code="invalid_output",
         )
-        for index, item in order:
-            found = _find_feature(item, batch_size=batch_size, preferred=preferred, seen=seen)
-            if found is not None:
-                return found[0], f"[{index}].{found[1]}"
-        return None
-    for attr in (preferred,) + tuple(item for item in _FEATURE_KEYS if item != preferred):
-        item = getattr(value, attr, _MISSING)
-        if item is _MISSING or item is value:
-            continue
-        found = _find_feature(item, batch_size=batch_size, preferred=preferred, seen=seen)
-        if found is not None:
-            return found[0], attr if found[1] == "model_output" else f"{attr}.{found[1]}"
-    data = getattr(value, "data", _MISSING)
-    if data is not _MISSING and data is not value:
-        found = _find_feature(data, batch_size=batch_size, preferred=preferred, seen=seen)
-        if found is not None:
-            return found[0], f"data.{found[1]}"
-    return None
+    shape = tuple(int(item) for item in getattr(candidate, "shape", ()))
+    if len(shape) == 5 and shape[2:] == (1, 1, 1):
+        if shape[0] != batch_size:
+            raise LegacyWorkerError(
+                f"C3D feature batch={shape[0]} 与输入 batch={batch_size} 不一致",
+                code="invalid_output",
+            )
+        reshape = getattr(candidate, "reshape", None)
+        candidate = (
+            reshape(shape[0], shape[1])
+            if callable(reshape)
+            else np.asarray(candidate).reshape(shape[0], shape[1])
+        )
 
-
-def _find_pooled(value: Any, *, batch_size: int, feature_dim: int) -> Any | None:
-    """Find an explicit [B,D] pooled field without selecting classifier logits."""
-
-    if value is None:
-        return None
-    shape = _shape(value)
-    if shape == (batch_size, feature_dim):
-        return value
-    if isinstance(value, Mapping):
-        for key in ("pooled", "pooler_output", "pooled_output", "fc_features"):
-            if key in value:
-                candidate = _find_pooled(value[key], batch_size=batch_size, feature_dim=feature_dim)
-                if candidate is not None:
-                    return candidate
-        return None
-    for key in ("pooled", "pooler_output", "pooled_output", "fc_features"):
-        candidate = getattr(value, key, None)
-        if candidate is not None:
-            found = _find_pooled(candidate, batch_size=batch_size, feature_dim=feature_dim)
-            if found is not None:
-                return found
-    return None
+    try:
+        selected, observed_source = select_feature_tensor(candidate, batch_size=batch_size)
+        features = normalize_feature_tensor(selected, batch_size=batch_size)
+    except ContractError as exc:
+        raise LegacyWorkerError(
+            f"C3D feature_layer={feature_layer!r} 无法规范化：{exc}",
+            code="invalid_output",
+        ) from exc
+    return features, source or observed_source
 
 
 def _caffe_available() -> bool:
@@ -1142,24 +1049,14 @@ class LegacyVideoAdapter(VideoEncoderAdapter):
         if not callable(forward):
             raise LegacyWorkerError("Caffe Net 缺少 forward()", code="worker_protocol_error")
         raw = forward()
-        preferred_value = _MISSING
-        if isinstance(blobs, Mapping) and self.feature_layer in blobs:
-            preferred_value = getattr(blobs[self.feature_layer], "data", blobs[self.feature_layer])
-        found = _find_feature(
-            preferred_value if preferred_value is not _MISSING else raw,
-            batch_size=batch.batch_size,
-            preferred=self.feature_layer,
-        )
-        if found is None and preferred_value is _MISSING:
-            found = _find_feature(raw, batch_size=batch.batch_size, preferred=self.feature_layer)
-        if found is None:
+        if self.feature_layer not in blobs:
             raise LegacyWorkerError(
                 f"Caffe forward 未找到 feature_layer={self.feature_layer!r} activation",
                 code="invalid_output",
             )
         return (
-            found[0],
-            f"caffe:{self.feature_layer if preferred_value is not _MISSING else found[1]}",
+            getattr(blobs[self.feature_layer], "data", blobs[self.feature_layer]),
+            f"caffe:{self.feature_layer}",
             raw,
         )
 
@@ -1173,42 +1070,25 @@ class LegacyVideoAdapter(VideoEncoderAdapter):
             mean=self.mean,
             scale=self.scale,
         )
-        raw_container: Any | None = None
+        raw_container: Any
+        source: str | None = None
         try:
             if callable(getattr(self.encoder, "encode", None)):
-                raw_output = self._call_generic(model_input, batch, train=train)
-                raw_container = raw_output
-                found = _find_feature(
-                    raw_output,
-                    batch_size=batch.batch_size,
-                    preferred=self.feature_layer,
-                )
-                if found is None:
-                    raise LegacyWorkerError(
-                        "legacy encoder 输出中没有可识别的 fc/features activation",
-                        code="invalid_output",
-                        details={"output_type": type(raw_output).__name__},
-                    )
-                raw, source = found
+                raw_container = self._call_generic(model_input, batch, train=train)
+                raw = raw_container
             elif hasattr(self.encoder, "blobs") and callable(
                 getattr(self.encoder, "forward", None)
             ):
                 raw, source, raw_container = self._call_caffe_net(model_input, batch, train=train)
             else:
-                raw_output = self._call_generic(model_input, batch, train=train)
-                raw_container = raw_output
-                found = _find_feature(
-                    raw_output,
-                    batch_size=batch.batch_size,
-                    preferred=self.feature_layer,
-                )
-                if found is None:
-                    raise LegacyWorkerError(
-                        "legacy encoder 输出中没有可识别的 fc/features activation",
-                        code="invalid_output",
-                        details={"output_type": type(raw_output).__name__},
-                    )
-                raw, source = found
+                raw_container = self._call_generic(model_input, batch, train=train)
+                raw = raw_container
+            features, source = _normalize_c3d_feature(
+                raw,
+                batch_size=batch.batch_size,
+                feature_layer=self.feature_layer,
+                sequence_source=source,
+            )
         except LegacyIntegrationError:
             raise
         except Exception as exc:
@@ -1217,44 +1097,18 @@ class LegacyVideoAdapter(VideoEncoderAdapter):
                 code="forward_failed",
             ) from exc
 
-        shape = _shape(raw)
-        if shape is None or len(shape) not in {2, 3}:
-            raise LegacyWorkerError(
-                f"C3D feature activation 无法规范化为 [B,D]/[B,S,D]：shape={shape}",
-                code="invalid_output",
+        timeline = _timeline_for_batch(batch, int(features.shape[1]))
+        pooled = None
+        for name in ("pooler_output", "pooled_output", "pooled"):
+            pooled = (
+                raw_container.get(name)
+                if isinstance(raw_container, Mapping)
+                else getattr(raw_container, name, None)
             )
-        token_count = 1 if len(shape) == 2 else shape[1]
-        timeline = _timeline_for_batch(batch, token_count)
-        pooled = _find_pooled(
-            raw_container,
-            batch_size=batch.batch_size,
-            feature_dim=shape[-1],
-        )
-        if pooled is None and len(shape) == 2:
-            pooled = raw
-        # Keep explicit pooled fields when the legacy output is a mapping such
-        # as ``{"fc6": tensor}``.  The common normalizer intentionally has a
-        # conservative field taxonomy and does not know every Caffe blob name,
-        # so expose the selected activation through its canonical ``features``
-        # key while retaining our more precise ``sequence_source`` below.
-        payload = raw
-        if raw_container is not None:
-            container_found = _find_feature(
-                raw_container,
-                batch_size=batch.batch_size,
-                preferred=self.feature_layer,
-            )
-            if container_found is not None and _shape(container_found[0]) == shape:
-                if isinstance(raw_container, Mapping):
-                    payload = {"features": raw}
-                    if pooled is not None:
-                        payload["pooled"] = pooled
-                elif hasattr(raw_container, "features") or hasattr(
-                    raw_container, "last_hidden_state"
-                ):
-                    payload = raw_container
+            if pooled is not None:
+                break
         output = normalize_encoder_output(
-            payload,
+            features,
             timeline=timeline,
             feature_stage="fc_features",
             pooled=pooled,
@@ -1273,6 +1127,16 @@ class LegacyVideoAdapter(VideoEncoderAdapter):
                 "checkout_path": None if self.checkout_path is None else str(self.checkout_path),
                 **input_metadata,
             },
+        )
+        raw_type = type(raw_container)
+        model_output_type = raw_type.__qualname__
+        if raw_type.__module__ != "builtins":
+            model_output_type = f"{raw_type.__module__}.{model_output_type}"
+        output = EncoderOutput(
+            features=output.features,
+            pooled=output.pooled,
+            timeline=output.timeline,
+            aux={**output.aux, "model_output_type": model_output_type},
         )
         validate_encoder_output(output, batch)
         try:

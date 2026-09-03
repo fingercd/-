@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import builtins
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -14,6 +15,7 @@ from vadbench.integrations.legacy import (
     LegacyAssetError,
     LegacyDependencyError,
     LegacyVideoAdapter,
+    LegacyWorkerError,
 )
 
 
@@ -41,6 +43,28 @@ class _FakeEncoder:
         return {"fc6": np.arange(batch * 4, dtype=np.float32).reshape(batch, 4)}
 
 
+class _FakeBlob:
+    def __init__(self, data: np.ndarray) -> None:
+        self.data = data
+
+    def reshape(self, *shape: int) -> None:
+        self.data = np.empty(shape, dtype=np.float32)
+
+
+class _FakeCaffeNet:
+    def __init__(self, batch_size: int) -> None:
+        self.blobs = {
+            "data": _FakeBlob(np.empty((0,), dtype=np.float32)),
+            "fc6": _FakeBlob(
+                np.arange(batch_size * 4, dtype=np.float32).reshape(batch_size, 4, 1, 1, 1)
+            ),
+            "features": _FakeBlob(np.full((batch_size, 2), -1.0, dtype=np.float32)),
+        }
+
+    def forward(self) -> dict[str, np.ndarray]:
+        return {"logits": np.full((len(self.blobs["fc6"].data), 487), 99.0)}
+
+
 def test_fake_encoder_receives_contiguous_c3d_bcthw_and_emits_contract() -> None:
     encoder = _FakeEncoder()
     adapter = LegacyVideoAdapter(encoder=encoder)
@@ -59,6 +83,56 @@ def test_fake_encoder_receives_contiguous_c3d_bcthw_and_emits_contract() -> None
     assert output.aux["preprocess_profile"] == "c3d-16x112-v1"
     assert output.aux["input_layout"] == "BCTHW"
     assert output.aux["input_shape"] == [1, 3, 16, 112, 112]
+    assert output.aux["model_output_type"] == "dict"
+
+
+def test_caffe_fc_blob_is_selected_explicitly_and_flattened_to_singleton() -> None:
+    adapter = LegacyVideoAdapter(encoder=_FakeCaffeNet(batch_size=2), feature_layer="fc6")
+
+    output = adapter.encode(_batch(batch_size=2))
+
+    np.testing.assert_array_equal(
+        output.features[:, 0], np.arange(8, dtype=np.float32).reshape(2, 4)
+    )
+    assert output.features.shape == (2, 1, 4)
+    assert output.timeline.source_frame_start.tolist() == [[0], [0]]
+    assert output.timeline.source_frame_end.tolist() == [[16], [16]]
+    np.testing.assert_allclose(output.timeline.end_s, 16.0 / 30.0)
+    assert output.aux["sequence_source"] == "caffe:fc6"
+
+
+@pytest.mark.parametrize(
+    "raw_output",
+    [
+        {"features": np.ones((1, 4), dtype=np.float32)},
+        SimpleNamespace(features=np.ones((1, 4), dtype=np.float32)),
+        (
+            np.ones((1, 4), dtype=np.float32),
+            np.ones((1, 487), dtype=np.float32),
+        ),
+    ],
+    ids=("mapping", "object", "tuple"),
+)
+def test_container_output_must_name_the_declared_feature_layer(raw_output: Any) -> None:
+    class Encoder:
+        def encode(self, frames: np.ndarray) -> Any:
+            return raw_output
+
+    with pytest.raises(LegacyWorkerError) as captured:
+        LegacyVideoAdapter(encoder=Encoder(), feature_layer="fc6").encode(_batch())
+
+    assert captured.value.code == "invalid_output"
+
+
+def test_direct_tensor_output_keeps_its_real_model_output_type() -> None:
+    class Encoder:
+        def encode(self, frames: np.ndarray) -> np.ndarray:
+            return np.ones((len(frames), 4), dtype=np.float32)
+
+    output = LegacyVideoAdapter(encoder=Encoder()).encode(_batch())
+
+    assert output.features.shape == (1, 1, 4)
+    assert output.aux["model_output_type"] == "numpy.ndarray"
 
 
 def test_short_or_long_input_is_defensively_normalized_to_profile() -> None:
