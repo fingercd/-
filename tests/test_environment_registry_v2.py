@@ -14,7 +14,6 @@ from vadbench.environment_registry import (
 )
 from vadbench.integrations.catalog import load_integration_catalog
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -23,9 +22,7 @@ def test_all_25_candidates_are_classified_once_across_four_groups() -> None:
     candidates = load_encoder_candidates(ROOT)
     candidate_ids = {item["id"] for item in candidates}
     grouped_ids = {
-        encoder_id
-        for group in registry.groups.values()
-        for encoder_id in group.encoders
+        encoder_id for group in registry.groups.values() for encoder_id in group.encoders
     }
     assert len(registry.groups) == 4
     assert len(candidates) == 25
@@ -35,20 +32,14 @@ def test_all_25_candidates_are_classified_once_across_four_groups() -> None:
 
 def test_runtime_catalog_matches_registration_policy() -> None:
     candidates = load_encoder_candidates(ROOT)
-    expected = {
-        item["id"]
-        for item in candidates
-        if item["registration_state"] != "candidate_only"
-    }
+    expected = {item["id"] for item in candidates if item["registration_state"] != "candidate_only"}
     catalog = load_integration_catalog(
         ROOT / "registry/encoder-integrations.yaml",
         project_root=ROOT,
     )
     assert len(expected) == 21
     assert set(catalog.ids) == expected
-    assert {
-        "uniformerv2", "umt", "infinipot_v", "mukv"
-    }.isdisjoint(catalog.ids)
+    assert {"uniformerv2", "umt", "infinipot_v", "mukv"}.isdisjoint(catalog.ids)
     for record in catalog.integrations:
         assert record.environment.profile.endswith("-v2")
 

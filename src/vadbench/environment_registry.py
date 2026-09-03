@@ -96,7 +96,9 @@ def load_encoder_environment_registry(
         encoders = tuple(str(value) for value in raw.get("encoders", []))
         overlap = seen.intersection(encoders)
         if overlap:
-            raise EncoderEnvironmentRegistryError(f"duplicate encoder assignments: {sorted(overlap)}")
+            raise EncoderEnvironmentRegistryError(
+                f"duplicate encoder assignments: {sorted(overlap)}"
+            )
         seen.update(encoders)
         if any(prefix == item or item in prefix.parents for item in protected):
             raise EncoderEnvironmentRegistryError(f"new prefix overlaps protected root: {prefix}")
@@ -112,7 +114,10 @@ def load_encoder_environment_registry(
     for encoder_id, raw in overlays.items():
         if encoder_id not in seen:
             raise EncoderEnvironmentRegistryError(f"overlay target is not classified: {encoder_id}")
-        if raw.get("group") != groups[next(key for key, value in groups.items() if encoder_id in value.encoders)].id:
+        if (
+            raw.get("group")
+            != groups[next(key for key, value in groups.items() if encoder_id in value.encoders)].id
+        ):
             raise EncoderEnvironmentRegistryError(f"overlay group mismatch: {encoder_id}")
         _inside(root, str(raw["path"]), f"overlay {encoder_id}")
     return EncoderEnvironmentRegistry(
