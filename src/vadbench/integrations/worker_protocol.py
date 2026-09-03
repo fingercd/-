@@ -18,7 +18,7 @@ import stat
 import tempfile
 import zipfile
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from enum import Enum
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType
@@ -104,6 +104,18 @@ def _require_non_empty_string(value: Any, *, name: str, limit: int = 2048) -> st
     if not isinstance(value, str) or not value or len(value) > limit or "\x00" in value:
         raise WorkerProtocolError(f"{name} must be a non-empty bounded string")
     return value
+
+
+def _dataclass_payload(value: Any, /, **overrides: Any) -> dict[str, Any]:
+    return {
+        item.name: overrides.get(item.name, getattr(value, item.name)) for item in fields(value)
+    }
+
+
+def _dataclass_kwargs(cls: type[Any], value: Any, *, name: str) -> dict[str, Any]:
+    value = _require_mapping(value, name=name)
+    _require_exact_fields(value, {item.name for item in fields(cls)}, name=name)
+    return dict(value)
 
 
 def _validate_relative_posix_path(
@@ -271,47 +283,11 @@ class ArraySidecarRef:
         object.__setattr__(self, "dtype", dtype.str)
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "path": self.path,
-            "format": self.format,
-            "key": self.key,
-            "shape": list(self.shape),
-            "dtype": self.dtype,
-            "nbytes": self.nbytes,
-            "file_size": self.file_size,
-            "sha256": self.sha256,
-            "source_dtype": self.source_dtype,
-        }
+        return _dataclass_payload(self, shape=list(self.shape))
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> ArraySidecarRef:
-        value = _require_mapping(value, name="array reference")
-        _require_exact_fields(
-            value,
-            {
-                "path",
-                "format",
-                "key",
-                "shape",
-                "dtype",
-                "nbytes",
-                "file_size",
-                "sha256",
-                "source_dtype",
-            },
-            name="array reference",
-        )
-        return cls(
-            path=value["path"],
-            format=value["format"],
-            key=value["key"],
-            shape=_shape_tuple(value["shape"], name="array.shape"),
-            dtype=value["dtype"],
-            nbytes=value["nbytes"],
-            file_size=value["file_size"],
-            sha256=value["sha256"],
-            source_dtype=value["source_dtype"],
-        )
+        return cls(**_dataclass_kwargs(cls, value, name="array reference"))
 
 
 def _sha256_file(path: Path) -> str:
@@ -346,9 +322,7 @@ def _validate_npy_header(
             (2, 0): np.lib.format.read_array_header_2_0,
             (3, 0): np.lib.format.read_array_header_2_0,
         }[version]
-        shape, _fortran_order, dtype_value = reader(
-            handle, max_header_size=limits.max_header_bytes
-        )
+        shape, _fortran_order, dtype_value = reader(handle, max_header_size=limits.max_header_bytes)
         actual_shape = tuple(int(item) for item in shape)
         actual_dtype = _dtype(dtype_value)
     except (EOFError, KeyError, TypeError, ValueError) as exc:
@@ -1153,53 +1127,18 @@ class WorkerRequest:
         )
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "protocol": self.protocol,
-            "version": self.version,
-            "kind": self.kind,
-            "request_id": self.request_id,
-            "encoder_id": self.encoder_id,
-            "operation": self.operation,
-            "clips": [dict(item) for item in self.clips],
-            "adapter_kwargs": dict(self.adapter_kwargs),
-            "train": self.train,
-            "output_dir": self.output_dir,
-        }
+        return _dataclass_payload(
+            self,
+            clips=[dict(item) for item in self.clips],
+            adapter_kwargs=dict(self.adapter_kwargs),
+        )
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> WorkerRequest:
-        value = _require_mapping(value, name="worker request")
-        _require_exact_fields(
-            value,
-            {
-                "protocol",
-                "version",
-                "kind",
-                "request_id",
-                "encoder_id",
-                "operation",
-                "clips",
-                "adapter_kwargs",
-                "train",
-                "output_dir",
-            },
-            name="worker request",
-        )
-        clips = value["clips"]
-        if not isinstance(clips, list):
+        kwargs = _dataclass_kwargs(cls, value, name="worker request")
+        if not isinstance(kwargs["clips"], list):
             raise WorkerProtocolError("clips must be an array")
-        return cls(
-            protocol=value["protocol"],
-            version=value["version"],
-            kind=value["kind"],
-            request_id=value["request_id"],
-            encoder_id=value["encoder_id"],
-            operation=value["operation"],
-            clips=tuple(_require_mapping(item, name="clip") for item in clips),
-            adapter_kwargs=_require_mapping(value["adapter_kwargs"], name="adapter_kwargs"),
-            train=value["train"],
-            output_dir=value["output_dir"],
-        )
+        return cls(**kwargs)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1214,25 +1153,11 @@ class WorkerErrorInfo:
             _require_non_empty_string(getattr(self, name), name=f"error.{name}", limit=2048)
 
     def to_dict(self) -> dict[str, str]:
-        return {
-            "code": self.code,
-            "stage": self.stage,
-            "exception_type": self.exception_type,
-            "message": self.message,
-        }
+        return _dataclass_payload(self)
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> WorkerErrorInfo:
-        value = _require_mapping(value, name="worker error")
-        _require_exact_fields(
-            value, {"code", "stage", "exception_type", "message"}, name="worker error"
-        )
-        return cls(
-            code=value["code"],
-            stage=value["stage"],
-            exception_type=value["exception_type"],
-            message=value["message"],
-        )
+        return cls(**_dataclass_kwargs(cls, value, name="worker error"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -1315,51 +1240,18 @@ class WorkerResponse:
         )
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "protocol": self.protocol,
-            "version": self.version,
-            "kind": self.kind,
-            "request_id": self.request_id,
-            "status": self.status,
-            "output_dir": self.output_dir,
-            "result_kind": self.result_kind,
-            "result": None if self.result is None else dict(self.result),
-            "error": None if self.error is None else self.error.to_dict(),
-        }
+        return _dataclass_payload(
+            self,
+            result=None if self.result is None else dict(self.result),
+            error=None if self.error is None else self.error.to_dict(),
+        )
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> WorkerResponse:
-        value = _require_mapping(value, name="worker response")
-        _require_exact_fields(
-            value,
-            {
-                "protocol",
-                "version",
-                "kind",
-                "request_id",
-                "status",
-                "output_dir",
-                "result_kind",
-                "result",
-                "error",
-            },
-            name="worker response",
-        )
-        result = value["result"]
-        error = value["error"]
-        return cls(
-            protocol=value["protocol"],
-            version=value["version"],
-            kind=value["kind"],
-            request_id=value["request_id"],
-            status=value["status"],
-            output_dir=value["output_dir"],
-            result_kind=value["result_kind"],
-            result=None if result is None else _require_mapping(result, name="response.result"),
-            error=None
-            if error is None
-            else WorkerErrorInfo.from_dict(_require_mapping(error, name="response.error")),
-        )
+        kwargs = _dataclass_kwargs(cls, value, name="worker response")
+        if kwargs["error"] is not None:
+            kwargs["error"] = WorkerErrorInfo.from_dict(kwargs["error"])
+        return cls(**kwargs)
 
     def raise_for_error(self) -> None:
         if self.error is not None:
@@ -1429,7 +1321,6 @@ def read_worker_response(
         )
     if response.status == "error":
         return response, None
-    assert response.result is not None
     if response.result_kind == "encoder_output":
         result: EncoderOutput | StreamWorkerResult = deserialize_encoder_output(
             response.result,

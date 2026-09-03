@@ -24,6 +24,7 @@ from vadbench.integrations.worker_protocol import (
     SidecarIntegrityError,
     SidecarStore,
     StreamWorkerResult,
+    WorkerErrorInfo,
     WorkerProtocolError,
     WorkerRequest,
     WorkerResponse,
@@ -537,6 +538,37 @@ def test_request_rejects_unknown_import_target_field(tmp_path: Path) -> None:
 
     with pytest.raises(WorkerProtocolError, match="extra=.*target"):
         read_worker_request(tmp_path, "injected.json")
+
+
+def test_wire_dataclasses_round_trip_only_exact_fields() -> None:
+    reference = ArraySidecarRef(
+        path="input/run/value.npy",
+        format="npy",
+        key=None,
+        shape=(1,),
+        dtype="|u1",
+        nbytes=1,
+        file_size=129,
+        sha256="0" * 64,
+    )
+    error = WorkerErrorInfo(
+        code="execution_failed",
+        stage="execution",
+        exception_type="RuntimeError",
+        message="failed",
+    )
+    values = (
+        reference,
+        WorkerRequest("request", "fixed", "encode", ({},), output_dir="output/request"),
+        error,
+        WorkerResponse.failure(request_id="request", output_dir="output/request", error=error),
+    )
+
+    for value in values:
+        payload = value.to_dict()
+        assert type(value).from_dict(payload) == value
+        with pytest.raises(WorkerProtocolError, match="extra=.*unexpected"):
+            type(value).from_dict({**payload, "unexpected": None})
 
 
 def test_json_parser_rejects_duplicate_keys_and_non_finite_constants(tmp_path: Path) -> None:
