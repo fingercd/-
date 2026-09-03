@@ -52,8 +52,9 @@ class _FakeUpstream:
         self.output_kind = output_kind
         self.calls: list[Any] = []
 
-    def __call__(self, frames: Any) -> Any:
-        self.calls.append(frames)
+    def __call__(self, batch: ClipBatch) -> Any:
+        self.calls.append(batch)
+        frames = batch.frames
         assert frames.dtype == np.uint8
         assert frames.ndim == 5  # canonical BTHWC boundary
         batch_size = int(frames.shape[0])
@@ -139,11 +140,53 @@ def test_loader_is_explicit_and_lazy_after_local_asset_check(
     assert adapter.encoder is fake
 
 
+def test_loader_without_explicit_signature_is_not_retried(tmp_path: Path) -> None:
+    checkpoint = tmp_path / "checkpoint.bin"
+    checkpoint.write_bytes(b"placeholder")
+
+    class OpaqueLoader:
+        calls = 0
+
+        @property
+        def __signature__(self) -> None:
+            raise ValueError("opaque")
+
+        def __call__(self, *_: Any, **__: Any) -> _FakeUpstream:
+            self.calls += 1
+            return _FakeUpstream()
+
+    loader = OpaqueLoader()
+    adapter = UMTAdapter(model_path=checkpoint, loader=loader)
+    with pytest.raises(FoundationUpstreamError, match="可检查的显式签名"):
+        adapter.encode(_batch(batch_size=1))
+    assert loader.calls == 0
+
+
 def test_in_process_bridge_is_available_without_heavy_imports() -> None:
     fake = _FakeUpstream()
     adapter = UMTAdapter(encoder=fake, runtime="in_process")
     assert isinstance(adapter.bridge, InProcessFoundationBridge)
     adapter.encode(_batch(batch_size=1))
+
+
+def test_bridge_uses_only_explicit_clip_batch_worker_contract() -> None:
+    batch = _batch(batch_size=1)
+
+    class EncodeWorker:
+        def encode(self, received: ClipBatch) -> np.ndarray:
+            assert received is batch
+            return np.ones((1, 2, 3), dtype=np.float32)
+
+    bridge = InProcessFoundationBridge(backend="unit", encoder=EncodeWorker())
+    assert bridge.encode(batch).shape == (1, 2, 3)
+
+    class ForwardOnlyWorker:
+        def forward(self, frames: Any) -> np.ndarray:  # pragma: no cover - must not run
+            raise AssertionError(frames)
+
+    bridge = InProcessFoundationBridge(backend="unit", encoder=ForwardOnlyWorker())
+    with pytest.raises(TypeError, match=r"encode\(ClipBatch\).*callable\(ClipBatch\)"):
+        bridge.encode(batch)
 
 
 def test_foundation_modules_do_not_import_model_libraries(monkeypatch: pytest.MonkeyPatch) -> None:

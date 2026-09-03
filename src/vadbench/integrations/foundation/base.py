@@ -15,7 +15,6 @@ import importlib.util
 import inspect
 import sys
 from collections.abc import Callable, Mapping
-from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -31,7 +30,6 @@ from vadbench.contracts import (
 )
 from vadbench.integrations.common import (
     normalize_encoder_output,
-    normalize_feature_tensor,
     select_feature_tensor,
 )
 
@@ -61,13 +59,6 @@ class FoundationUpstreamError(FoundationIntegrationError, ImportError):
     """Raised when an explicit upstream loader/entrypoint cannot be resolved."""
 
 
-def _shape(value: Any) -> tuple[int, ...]:
-    raw_shape = getattr(value, "shape", None)
-    if raw_shape is None:
-        raw_shape = np.asarray(value).shape
-    return tuple(int(item) for item in raw_shape)
-
-
 def _to_numpy(value: Any) -> np.ndarray:
     """Copy only small timeline metadata to CPU when the upstream uses torch."""
 
@@ -77,13 +68,6 @@ def _to_numpy(value: Any) -> np.ndarray:
             tensor = tensor.float()
         return tensor.numpy()
     return np.asarray(value)
-
-
-def _type_name(value: Any) -> str:
-    value_type = type(value)
-    if value_type.__module__ == "builtins":
-        return value_type.__qualname__
-    return f"{value_type.__module__}.{value_type.__qualname__}"
 
 
 def _is_path_like_reference(value: str) -> bool:
@@ -215,9 +199,12 @@ def _call_loader(
     a different signature, which keeps upstream failures observable.
     """
 
-    parameters = None
-    with suppress(TypeError, ValueError):
+    try:
         parameters = inspect.signature(loader).parameters
+    except (TypeError, ValueError) as exc:
+        raise FoundationUpstreamError(
+            f"{backend} upstream loader 必须提供可检查的显式签名"
+        ) from exc
     values: dict[str, Any] = {
         "model_path": str(model_path),
         "checkpoint_path": str(model_path),
@@ -225,11 +212,6 @@ def _call_loader(
         "device": device,
         **dict(model_kwargs),
     }
-    if parameters is None:
-        try:
-            return loader(str(model_path))
-        except TypeError:
-            return loader()
     accepts_var_kw = any(
         parameter.kind is inspect.Parameter.VAR_KEYWORD for parameter in parameters.values()
     )
@@ -268,140 +250,22 @@ def _call_loader(
         raise FoundationUpstreamError(f"{backend} upstream loader 执行失败：{exc}") from exc
 
 
-def _parameter_prefers_batch(parameter: inspect.Parameter) -> bool:
-    name = parameter.name.lower()
-    annotation = parameter.annotation
-    if annotation is ClipBatch or annotation == "ClipBatch":
-        return True
-    return name in {"batch", "clip_batch", "sample_batch", "batch_data"} or "batch" in name
-
-
-def _parameter_prefers_frames(parameter: inspect.Parameter) -> bool:
-    name = parameter.name.lower()
-    return (
-        name
-        in {
-            "frames",
-            "frame",
-            "video",
-            "videos",
-            "video_frames",
-            "pixels",
-            "pixel_values",
-            "input",
-            "inputs",
-            "x",
-        }
-        or "frame" in name
-        or "pixel" in name
-    )
-
-
 def _invoke_encoder(encoder: Any, batch: ClipBatch) -> Any:
-    """Invoke common upstream encoder spellings at the canonical boundary."""
+    """Invoke the internal worker's explicit ``ClipBatch`` contract."""
 
-    method: Callable[..., Any] | None = None
-    for method_name in ("encode_clip", "encode_video", "encode", "forward"):
-        candidate = getattr(encoder, method_name, None)
-        if callable(candidate):
-            method = candidate
-            break
-    if method is None and callable(encoder):
-        method = encoder
-    if method is None:
-        raise TypeError(
-            f"upstream {_type_name(encoder)} 未提供 encode_clip/encode_video/encode/forward/callable"
-        )
-
-    try:
-        signature = inspect.signature(method)
-    except (TypeError, ValueError):
-        return method(batch.frames)
-    parameters = list(signature.parameters.values())
-    # Hugging Face-style forwards often expose ``input_ids`` before an optional
-    # ``pixel_values``/``videos`` argument.  Supplying the video by keyword
-    # avoids accidentally feeding frames into ``input_ids``.
-    frame_parameter = next(
-        (
-            parameter
-            for parameter in parameters
-            if _parameter_prefers_frames(parameter)
-            and not _parameter_prefers_batch(parameter)
-            and parameter.kind
-            in {
-                inspect.Parameter.POSITIONAL_ONLY,
-                inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                inspect.Parameter.KEYWORD_ONLY,
-            }
-        ),
-        None,
+    method = getattr(encoder, "encode", None)
+    if callable(method):
+        return method(batch)
+    if callable(encoder):
+        return encoder(batch)
+    raise TypeError(
+        f"upstream {type(encoder).__name__} 必须实现 encode(ClipBatch) 或 callable(ClipBatch)"
     )
-    if frame_parameter is not None and frame_parameter.name.lower() in {
-        "pixel_values",
-        "video",
-        "videos",
-        "video_frames",
-        "frames",
-    }:
-        positional_required = [
-            parameter
-            for parameter in parameters
-            if parameter.kind
-            in {inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD}
-            and parameter.default is inspect.Parameter.empty
-        ]
-        first_required_is_frame = (
-            not positional_required or positional_required[0] is frame_parameter
-        )
-        if first_required_is_frame and len(positional_required) <= 1:
-            if frame_parameter.kind is inspect.Parameter.POSITIONAL_ONLY:
-                return method(batch.frames)
-            return method(**{frame_parameter.name: batch.frames})
-    positional = [
-        parameter
-        for parameter in parameters
-        if parameter.kind
-        in {inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD}
-    ]
-    if positional:
-        parameter = positional[0]
-        if _parameter_prefers_batch(parameter):
-            return method(batch)
-        if _parameter_prefers_frames(parameter):
-            return method(batch.frames)
-        # Unknown parameter names are treated as model tensors first; this is
-        # the convention used by torch ``forward(x)`` implementations.
-        return method(batch.frames)
-    keyword_only = [
-        parameter for parameter in parameters if parameter.kind is inspect.Parameter.KEYWORD_ONLY
-    ]
-    if keyword_only:
-        parameter = keyword_only[0]
-        value = batch if _parameter_prefers_batch(parameter) else batch.frames
-        return method(**{parameter.name: value})
-    return method()
-
-
-def _canonicalize_pair_output(raw_output: Any, *, batch_size: int) -> Any:
-    """Make the common ``(features, pooled)`` return form explicit."""
-
-    if isinstance(raw_output, (tuple, list)) and len(raw_output) == 2:
-        first, second = raw_output
-        try:
-            first_shape = _shape(first)
-            second_shape = _shape(second)
-        except Exception:
-            return raw_output
-        if len(first_shape) == 3 and first_shape[0] == batch_size and len(second_shape) == 2:
-            return {"features": first, "pooled": second}
-    return raw_output
 
 
 def _uniform_timeline(batch: ClipBatch, token_count: int):
     """Map output tokens to monotonically increasing source-frame intervals."""
 
-    if type(token_count) is not int or token_count <= 0:
-        raise ValueError(f"token_count 必须是正整数，实际为 {token_count!r}")
     timestamps = _to_numpy(batch.timestamps_s)
     frame_indices = None if batch.frame_indices is None else _to_numpy(batch.frame_indices)
     starts = np.empty((batch.batch_size, token_count), dtype=np.float64)
@@ -411,8 +275,6 @@ def _uniform_timeline(batch: ClipBatch, token_count: int):
 
     for row in range(batch.batch_size):
         valid_frames = int(batch.valid_lengths[row])
-        if valid_frames <= 0:
-            raise ValueError("每个 foundation clip 至少需要一帧")
         times = timestamps[row, :valid_frames].astype(np.float64, copy=False)
         if valid_frames == 1:
             delta = 1.0 / 30.0
@@ -525,16 +387,11 @@ class LazyFoundationBridge:
 
     @property
     def encoder(self) -> Any:
-        if self._encoder is None:
-            self.load()
-        assert self._encoder is not None
-        return self._encoder
+        return self._encoder if self._encoder is not None else self.load()
 
     def load(self) -> Any:
         if self._encoder is not None:
             return self._encoder
-        if self.model_path is None:  # pragma: no cover - constructor guards this
-            raise FoundationAssetError(f"{self.backend} 没有可用的本地模型路径")
         target = self.loader
         if target is None and self.upstream_entrypoint is not None:
             target = _load_entrypoint(
@@ -661,15 +518,12 @@ class FoundationVideoAdapter(VideoEncoderAdapter):
 
     def encode(self, batch: ClipBatch, train: bool = False) -> EncoderOutput:
         validate_clip_for_capabilities(batch, self.capabilities, train=train)
-        raw_output = _canonicalize_pair_output(
-            self.bridge.encode(batch), batch_size=batch.batch_size
-        )
+        raw_output = self.bridge.encode(batch)
         if self.encoder is None:
             self.encoder = self.bridge.encoder
         selected, observed_source = select_feature_tensor(raw_output, batch_size=batch.batch_size)
-        normalized = normalize_feature_tensor(selected, batch_size=batch.batch_size)
-        token_count = _shape(normalized)[1]
-        sequence_source = "pooled_singleton" if len(_shape(selected)) == 2 else observed_source
+        token_count = 1 if selected.ndim == 2 else int(selected.shape[1])
+        sequence_source = "pooled_singleton" if selected.ndim == 2 else observed_source
         timeline = _uniform_timeline(batch, token_count)
         output = normalize_encoder_output(
             raw_output,
