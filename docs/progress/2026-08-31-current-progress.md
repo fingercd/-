@@ -2,7 +2,7 @@
 
 ## 0. 当前状态
 
-当前可信状态是：14 条可计入 PASS 的原生前向通过，0 条路线仍为 planned，11 条路线因资产、依赖或许可门禁 blocked。只有目标自身代码、目标自身权重和真实视频前向通过的结果才进入原生统计。
+2026-09-03 已建立四组全新隔离环境：25 路候选中 21 路进入运行 catalog，14 路在新环境真实权重 smoke 通过，2 路技术通过但许可证阻塞，5 路等待人工资产，4 路不注册。
 
 来源审计：docs/research/native-encoder-source-audit-2026-08-31.md。
 
@@ -10,14 +10,14 @@
 
 根据最新约定，当前 Goal 为：
 
-1. 把调研中的 25 条固定 clip 视频模型与长视频/VLM 路线全部登记并接入 VADBench；
+1. 将 25 条研究候选分组管理，只把满足代码与 checkpoint 门禁的 21 路登记到运行 catalog；
 2. 建立统一 catalog、lazy registry、`BTHWC uint8` 输入、`EncoderOutput/StreamStep` 输出、隔离运行时和版本化 JSON 冒烟产物；
 3. 使用服务器当前视频 `data/smoke/mlvu-surveil-8.mp4` 和真实公开权重逐项跑通；
 4. 验证 shape、dtype、有限值、时间轴、stream state 和产物契约；
 5. 不把重心放在各路线是否严格属于纯 encoder，而以工程接入与可运行为准；
 6. 不依赖人工标注，不训练检测头，不计算 AUC/AP/F1，不做性能比较，也不开展 KV cache 压缩。
 
-纠错后的详细执行计划：`docs/plans/2026-08-31-native-encoder-integration-correction.md`。
+四组环境计划：docs/plans/2026-09-03-four-group-encoder-environments.md。
 
 从本文件之后：
 
@@ -150,7 +150,7 @@ GPU 运行时注意：
 - 每层 raw KV：405 / 469
 - 压缩后：77（13 个 protected prompt + 64 token budget）
 - 原生 `static_pseudo` 两次均 `called=true, applied=true`
-- 旧压缩验证结果：`outputs/server-smoke/hermes-cpu-static.json`；统一当前视频结果：`outputs/encoder-integration/current-video-final/hermes_llava_ov/result.json`
+- 旧压缩验证结果：outputs/server-smoke/hermes-cpu-static.json；四组环境结果：outputs/encoder-v2/smoke-stream-kv-v2-retry/hermes_llava_ov/hermes_llava_ov/result.json
 
 这证明真实 decoder-KV 状态可跨 chunk 复用并可被压缩。CPU 很慢，但正确性链路成立。
 
@@ -161,12 +161,14 @@ GPU 运行时注意：
 - 该结果使用合成特征，只证明工程链路，不代表 UCF-Crime 精度。
 
 
-## 5.1 25 路原生接入现状
+## 5.1 四组环境 v2 接入现状
 
-- 原生真实权重当前视频通过：`r2plus1d_18`、`x3d`、`mvitv2`、`slowfast`、`i3d`、`video_swin`、`videomaev2`、`hermes_llava_ov`、`timesformer`、`videomae`、`videomamba`、`vjepa2`、`videochat_flash`、`longvu`。
-- 其余 11 条均已收敛为可审计 `blocked`：VideoChat-Online 与 StreamingVLM 的原生 forward 已通过但许可未闭合；C3D、UniFormerV2、UMT、InternVideo2、VideoChat、MA-LMM、MovieChat 缺少可获取/可校验 checkpoint 或运行依赖；InfiniPot-V 与 MuKV 缺少明确 LICENSE/专用权重。
-- 后续严格按纠错计划逐条获取官方代码/权重；资产或许可证不满足时标记 `blocked`，不再使用其他模型替代。
-- 原生矩阵见 `docs/progress/encoder-integration-matrix.md`。
+- 四个新环境均已创建并通过 Python、Torch/CUDA 与核心 import 检查。
+- 14 路在新环境重新执行真实 checkpoint smoke 并通过。
+- VideoChat-Online、StreamingVLM 原生两 chunk 技术验证通过，但继续保持许可阻塞。
+- C3D、InternVideo2、VideoChat、MA-LMM、MovieChat 进入人工下载清单。
+- UniFormerV2、UMT、InfiniPot-V、MuKV 不满足代码加目标 checkpoint 注册门禁。
+- 详细证据见 docs/progress/encoder-environment-v2.md。
 
 ## 6. UCF-Crime 数据状态
 

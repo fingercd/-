@@ -7,7 +7,7 @@ VADBench 用同一套数据、时间轴和产物协议编排 25 条视频模型/
 
 首个 benchmark 是 UCF-Crime。框架覆盖官方 split 导入、32 段兼容采样、冻结特征抽取、弱监督 MIL、显式时序强监督、帧级 ROC-AUC/AP、缓存压缩注入和可追溯 JSON/JSONL 产物。原来的 `lab_anomaly/` VideoMAE V2 + MIL 代码仍保留，新的实验从 `src/vadbench/` 进入。
 
-[English](README.md) · [编码器调研](docs/research/video-encoder-survey-2026-08-31.md) · [UCF-Crime 协议](docs/research/ucf-crime-protocol.md) · [来源审计](docs/research/native-encoder-source-audit-2026-08-31.md) · [当前进度](docs/progress/2026-08-31-current-progress.md)
+[English](README.md) · [编码器调研](docs/research/video-encoder-survey-2026-08-31.md) · [UCF-Crime 协议](docs/research/ucf-crime-protocol.md) · [来源审计](docs/research/native-encoder-source-audit-2026-08-31.md) · [当前进度](docs/progress/2026-08-31-current-progress.md) · [四组环境迁移](docs/progress/encoder-environment-v2.md)
 
 ## 当前实现状态
 
@@ -18,14 +18,14 @@ VADBench 用同一套数据、时间轴和产物协议编排 25 条视频模型/
 | UCF-Crime 官方清单与标注导入 | ✅ | 自动阻止 train/test 泄漏 |
 | VideoMAE V2 adapter | ✅ | 稳定 pooled 输出；可选内部 hook 序列 |
 | HERMES adapter | ✅ | decoder KV、position IDs、原生层次压缩与遥测 |
-| 25 路 catalog/lazy registry | ✅ | 固定 clip、foundation、长视频/VLM 统一登记与能力协商 |
-| 原生当前视频 smoke v3 | 进行中 | 14 条可计入 PASS；0 条等待；11 条因资产/许可证门禁 blocked |
+| 25 路候选 / 21 路运行 catalog | ✅ | 四组新环境；缺少目标权重的 4 路不注册 |
+| 四组新环境 native smoke | ✅ | 14 PASS、2 许可阻塞、5 人工下载、4 未注册 |
 | 特征仓和运行产物 | ✅ | 内容寻址 NPZ/NPY + 版本化 JSONL |
 | 弱监督/强监督训练 | ✅ | Attention/Top-k MIL 与 temporal head |
 | UCF 帧级评测 | ✅ | micro frame ROC-AUC/AP |
 | 本地 mock/合成测试 | ✅ | PyTorch 与无 PyTorch 路径均覆盖 |
 | VideoMAE V2 真权重冒烟 | ✅（本地与 node3 CPU） | [本地证据](docs/evidence/local-videomaev2-smoke-2026-08-31.json) · [服务器证据](docs/evidence/server-videomaev2-smoke-2026-08-31.json) |
-| HERMES 真权重冒烟 | ✅（node3 CPU） | [证据](docs/evidence/server-hermes-smoke-2026-08-31.json)；统一当前视频产物见 `outputs/encoder-integration/current-video-final/` |
+| HERMES 真权重冒烟 | ✅（node3 CPU） | [证据](docs/evidence/server-hermes-smoke-2026-08-31.json)；四组环境结果见 outputs/environment-migration-v2/native-smoke-matrix.json |
 | train/evaluate 微型闭环 | ✅ | [证据](docs/evidence/pipeline-smoke-2026-08-31.json)；合成特征，不是 benchmark 分数 |
 | 真实 UCF 全量结果 | 尚未声称 | 仓库不含数据，必须使用官方视频与完整清单运行 |
 
@@ -53,7 +53,7 @@ scripts/                 上游同步与服务器离线部署脚本
 src/vadbench/
   contracts.py           encoder、时间轴、stream/cache 契约
   data/                   UCF manifest、采样、视频 I/O、特征数据集
-  integrations/          25 路 catalog adapter、兼容桥与 worker protocol
+  integrations/          21 路运行 adapter、四组环境与 worker protocol
   engine/                特征抽取、训练 runner、评测
   features.py            二进制特征仓与 JSONL 索引
   artifacts.py           provenance、预测、指标、cache telemetry
@@ -133,9 +133,7 @@ UCA 的时间戳自然语言事件可以用 `--uca-captions` 附加，但 `is_an
 
 ## 25 路原生接入计划
 
-当前 catalog 保留 25 个目标，但严格区分原生状态：14 条路线已经用各自代码和各自公开权重
-通过当前视频 smoke，0 条路线仍为 `planned`，另有 11 条路线因资产/许可证门禁为 `blocked`，等待各自的官方 checkout、checkpoint、许可证
-和隔离环境；只有满足原生门禁的结果进入原生统计。
+当前研究候选保留 25 路，运行 catalog 只登记满足代码/权重条件的 21 路。四组新环境已重新验证 14 路 PASS；VideoChat-Online 与 StreamingVLM 技术前向通过但许可证阻塞，5 路等待人工资产，4 路因缺少可校验目标 checkpoint 不注册。
 
 详细的逐路线来源、真实 checkpoint、加载入口和阻塞条件见：
 
