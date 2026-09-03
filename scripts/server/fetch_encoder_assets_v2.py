@@ -178,6 +178,9 @@ def main(argv: list[str] | None = None) -> int:
     environment = load_encoder_environment_registry(PROJECT_ROOT)
     candidates = load_encoder_candidates(PROJECT_ROOT)
     selected = set(args.id or [item["id"] for item in candidates])
+    unknown = selected - {item["id"] for item in candidates}
+    if unknown:
+        raise SystemExit(f"unknown encoder ids: {sorted(unknown)}")
     checkpoint_data = yaml.safe_load(
         (PROJECT_ROOT / "registry/checkpoints.yaml").read_text(encoding="utf-8")
     )["checkpoints"]

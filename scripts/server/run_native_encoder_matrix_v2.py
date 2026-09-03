@@ -76,6 +76,25 @@ def candidate_is_runnable(
     return True, None
 
 
+def require_available_gpu(device: str) -> None:
+    if not device.startswith("cuda"):
+        return
+    index = device.partition(":")[2] or "0"
+    used_mib = int(
+        subprocess.check_output(
+            [
+                "nvidia-smi",
+                f"--id={index}",
+                "--query-gpu=memory.used",
+                "--format=csv,noheader,nounits",
+            ],
+            text=True,
+        ).strip()
+    )
+    if used_mib > 1024:
+        raise SystemExit(f"GPU {index} already uses {used_mib} MiB")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--id", action="append")
@@ -90,6 +109,7 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
     )
     args = parser.parse_args(argv)
+    require_available_gpu(args.device)
 
     environment = load_encoder_environment_registry(PROJECT_ROOT)
     catalog = load_default_integration_catalog(PROJECT_ROOT)

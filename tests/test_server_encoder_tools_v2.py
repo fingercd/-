@@ -3,6 +3,8 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 from vadbench.environment_registry import (
     load_encoder_candidates,
     load_encoder_environment_registry,
@@ -36,6 +38,13 @@ def test_runner_policy_skips_manual_candidate_and_license_gate() -> None:
         True,
         None,
     )
+
+
+def test_runner_rejects_busy_gpu(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = load_script("run_native_encoder_matrix_v2.py")
+    monkeypatch.setattr(runner.subprocess, "check_output", lambda *args, **kwargs: "1025\n")
+    with pytest.raises(SystemExit, match="already uses 1025 MiB"):
+        runner.require_available_gpu("cuda:3")
 
 
 def test_asset_verifier_accepts_exact_hash_and_rejects_mismatch(tmp_path: Path) -> None:

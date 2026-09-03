@@ -155,7 +155,7 @@ catalog/lock，待资产满足后再运行。
 | `configs/smoke/encoder-matrix.yaml` | 当前视频、批次、环境、chunk 与输出目录 |
 | `integrations/<id>/upstream.lock.yaml` | 上游 URL、commit、许可证、入口与依赖说明 |
 | `registry/checkpoints.yaml` | checkpoint repo/revision/license/checksum/size |
-| `scripts/server/prepare_encoder_assets.py` | 只做显式目标的资产预检/获取编排，不删除文件 |
+| `scripts/server/fetch_encoder_assets_v2.py` | 核验显式目标的资产，并只在授权执行时获取允许下载的缺失项 |
 | `tests/test_integration_catalog.py` | 25 项完整性、唯一性、lazy import、definition/lock 存在 |
 | `tests/test_integration_common.py` | shape/pooling/timeline/finite 规范化 |
 | `tests/test_encoder_family_*.py` | 各 backend 与特殊 adapter 契约测试 |
@@ -296,7 +296,7 @@ catalog/lock，待资产满足后再运行。
 **涉及文件：**
 
 - 创建：`configs/smoke/encoder-matrix.yaml`
-- 创建：`scripts/server/prepare_encoder_assets.py`
+- 创建：`scripts/server/fetch_encoder_assets_v2.py`
 - 修改：`registry/checkpoints.yaml`
 - 创建/修改：各目标 `integrations/<id>/upstream.lock.yaml`
 - 创建：对应脚本测试或 dry-run 测试。

@@ -156,6 +156,19 @@ def test_npy_and_npz_sidecars_round_trip_with_declared_identity(tmp_path: Path) 
     assert ref.nbytes == first.nbytes
     np.testing.assert_array_equal(store.load_array(ref, required_prefix="input/run"), first)
 
+    path = tmp_path / ref.path
+    with path.open("wb") as handle:
+        np.lib.format.write_array_header_2_0(
+            handle,
+            {"descr": first.dtype.str, "fortran_order": False, "shape": first.shape},
+        )
+        handle.write(first.tobytes())
+    payload = bytearray(path.read_bytes())
+    payload[6:8] = b"\x03\x00"
+    path.write_bytes(payload)
+    v3_ref = replace(ref, sha256=hashlib.sha256(payload).hexdigest())
+    np.testing.assert_array_equal(store.load_array(v3_ref, required_prefix="input/run"), first)
+
     refs = store.write_npz(
         "input/run/bundle.npz",
         {"frames": np.arange(4, dtype=np.uint8), "times": np.array([0.0, 0.5])},

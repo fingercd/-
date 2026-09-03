@@ -344,6 +344,7 @@ def _validate_npy_header(
         reader = {
             (1, 0): np.lib.format.read_array_header_1_0,
             (2, 0): np.lib.format.read_array_header_2_0,
+            (3, 0): np.lib.format.read_array_header_2_0,
         }[version]
         shape, _fortran_order, dtype_value = reader(
             handle, max_header_size=limits.max_header_bytes

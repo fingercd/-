@@ -237,17 +237,23 @@ JSON 只存索引和元数据；大 tensor 放 NPZ/NPY。encoder fingerprint 覆
 
 ```bash
 export VAD_PROJECT_ROOT=/users/fotile/VAD
-bash scripts/server/bootstrap_offline.sh
-bash scripts/server/verify_deployment.sh
+python scripts/fetch_upstreams.py --verify-only
+python -m vadbench doctor --project-root "$VAD_PROJECT_ROOT"
+python scripts/server/manage_encoder_envs_v2.py verify
+python scripts/server/fetch_encoder_assets_v2.py
+python scripts/server/prepare_encoder_overlays_v2.py
 
 # 数据到位后，只创建显式、不可覆盖的软链接：
 bash scripts/server/link_ucf_crime.sh /users/fotile/datasets/UCF-Crime
 
-VAD_GPU=5 VAD_SMOKE_VIDEO=/users/fotile/VAD/data/smoke/surveillance-smoke.mp4 \
-  bash scripts/server/run_smokes.sh
+python scripts/server/run_native_encoder_matrix_v2.py \
+  --video data/smoke/mlvu-surveil-8.mp4 \
+  --device cuda:5 \
+  --id videomaev2 \
+  --id hermes_llava_ov
 ```
 
-脚本在启动前检查目标 GPU；不会抢占已使用超过 1 GiB 的设备。
+native runner 在启动前检查目标 GPU；不会抢占已使用超过 1 GiB 的设备。
 
 ## 测试与质量门禁
 

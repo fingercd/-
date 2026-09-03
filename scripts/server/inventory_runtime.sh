@@ -16,7 +16,13 @@ import json
 import sys
 
 payload = {"python": sys.version.split()[0], "executable": sys.executable}
-for name in ("torch", "torchvision", "transformers", "decord", "av"):
+modules = (
+    "accelerate", "av", "cv2", "decord", "flash_attn", "huggingface_hub",
+    "logzero", "numpy", "pandas", "PIL", "psutil", "qwen_vl_utils",
+    "safetensors", "sklearn", "tokenizers", "torch", "torchvision",
+    "transformers", "yaml",
+)
+for name in modules:
     if importlib.util.find_spec(name) is None:
         payload[name] = None
         continue
@@ -43,4 +49,3 @@ df -h /users
 
 echo "== GPUs =="
 nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu --format=csv,noheader
-
