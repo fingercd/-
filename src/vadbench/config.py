@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from copy import deepcopy
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -72,57 +71,30 @@ def validate_experiment_shape(config: Mapping[str, Any]) -> None:
         raise ConfigError("启用 streaming 时 chunk_frames 必须大于 0")
 
 
-@dataclass(frozen=True)
-class CapabilityRequest:
-    """从实验配置提取、供 encoder capability 校验的需求。"""
-
-    streaming: bool
-    cache_kind: str | None
-    cache_replace: bool
-    trainable: bool
-    supervision: str
-
-    @classmethod
-    def from_config(cls, config: Mapping[str, Any]) -> CapabilityRequest:
-        streaming = config.get("streaming", {})
-        compression = streaming.get("compression", {}) if isinstance(streaming, Mapping) else {}
-        return cls(
-            streaming=bool(streaming.get("enabled", False)),
-            cache_kind=(
-                str(compression.get("cache_kind")) if compression.get("cache_kind") else None
-            ),
-            cache_replace=bool(compression.get("replace", False)),
-            trainable=bool(config["encoder"].get("trainable", False)),
-            supervision=str(config["task"].get("supervision")),
-        )
-
-
 def validate_capabilities(config: Mapping[str, Any], capabilities: Any) -> None:
     """以 duck typing 校验配置需求，避免 config 层硬依赖某个 adapter 实现。"""
 
-    request = CapabilityRequest.from_config(config)
+    streaming = config.get("streaming", {})
+    compression = streaming.get("compression", {})
+    cache_kind = compression.get("cache_kind")
     supports_streaming = bool(getattr(capabilities, "supports_streaming", False))
     supports_grad = bool(getattr(capabilities, "supports_grad", False))
-    if request.streaming and not supports_streaming:
+    if streaming.get("enabled") and not supports_streaming:
         raise ConfigError("实验请求 streaming，但所选 encoder 不支持增量状态")
-    if request.trainable and not supports_grad:
+    if config["encoder"].get("trainable") and not supports_grad:
         raise ConfigError("实验请求端到端训练，但所选 encoder 不支持梯度")
 
-    if request.cache_kind:
+    if cache_kind:
+        cache_kind = str(cache_kind)
         cache_kinds = {
             str(getattr(item, "value", item)) for item in getattr(capabilities, "cache_kinds", ())
         }
-        if request.cache_kind not in cache_kinds:
+        if cache_kind not in cache_kinds:
             raise ConfigError(
-                f"实验请求 cache_kind={request.cache_kind!r}，adapter 仅声明 {sorted(cache_kinds)}"
+                f"实验请求 cache_kind={cache_kind!r}，adapter 仅声明 {sorted(cache_kinds)}"
             )
-    if request.cache_replace:
-        access = str(
-            getattr(
-                getattr(capabilities, "cache_access", "none"),
-                "value",
-                getattr(capabilities, "cache_access", "none"),
-            )
-        )
+    if compression.get("replace"):
+        cache_access = getattr(capabilities, "cache_access", "none")
+        access = str(getattr(cache_access, "value", cache_access))
         if access != "replace":
             raise ConfigError(f"实验请求替换缓存，但 adapter cache_access={access!r}")

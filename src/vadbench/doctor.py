@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import platform
 import shutil
 import sys
@@ -40,10 +41,7 @@ def _is_writable(path: Path) -> bool:
     target = path if path.exists() else path.parent
     while not target.exists() and target != target.parent:
         target = target.parent
-    try:
-        return target.is_dir() and bool(target.stat())
-    except OSError:
-        return False
+    return target.is_dir() and os.access(target, os.W_OK)
 
 
 def diagnostics_json(project_root: str | Path | None = None) -> str:
