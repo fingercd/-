@@ -1116,15 +1116,8 @@ class HermesLlavaOVAdapter(StreamingVideoEncoderAdapter):
         return None
 
 
-# Compatibility spellings used in configs and research notes.
-HermesAdapter = HermesLlavaOVAdapter
-HERMESLlavaOVAdapter = HermesLlavaOVAdapter
-
-
 __all__ = [
     "DEFAULT_CAPABILITIES",
-    "HERMESLlavaOVAdapter",
-    "HermesAdapter",
     "HermesLlavaOVAdapter",
     "import_hermes_load_model",
 ]

@@ -592,9 +592,6 @@ class FeatureDataset(Sequence[dict[str, Any]]):
         return self._sequence(self._entries[index]).to_dict()
 
 
-VideoFeatureDataset = FeatureDataset
-
-
 def _copy_row(destination: np.ndarray, row: int, value: Any, length: int) -> None:
     source = np.asarray(value).reshape(-1)
     if source.shape != (length,):
@@ -755,7 +752,6 @@ __all__ = [
     "StrongUnlabeledPolicy",
     "SupervisionKind",
     "TORCH_AVAILABLE",
-    "VideoFeatureDataset",
     "build_feature_dataloader",
     "collate_feature_batch",
 ]

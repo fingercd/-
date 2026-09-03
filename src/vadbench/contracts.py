@@ -726,10 +726,6 @@ class StreamingVideoEncoderAdapter(VideoEncoderAdapter):
         """Flush buffered output, if any, without inventing additional frames."""
 
 
-# Descriptive aliases kept small and explicit for downstream type annotations.
-FixedClipVideoEncoderAdapter = VideoEncoderAdapter
-
-
 def validate_clip_for_capabilities(
     batch: ClipBatch,
     capabilities: EncoderCapabilities,
@@ -851,7 +847,6 @@ __all__ = [
     "ContractError",
     "EncoderCapabilities",
     "EncoderOutput",
-    "FixedClipVideoEncoderAdapter",
     "StreamState",
     "StreamStep",
     "StreamingVideoEncoderAdapter",

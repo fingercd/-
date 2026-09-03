@@ -261,8 +261,3 @@ def sample_32_segments(
         position=position,
         seed=seed,
     )
-
-
-# 常见命名兼容。
-fixed_clip_indices = sample_fixed_clip
-uniform_segment_clips = sample_uniform_segment_clips

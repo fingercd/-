@@ -191,10 +191,6 @@ def train_one_step(
     )
 
 
-# Conventional synonym used by small scripts.
-training_step = train_one_step
-
-
 @dataclass(frozen=True)
 class CheckpointArtifact:
     """Traceable description stored beside a ``.pt`` checkpoint."""
@@ -317,9 +313,6 @@ def save_checkpoint(
     return artifact
 
 
-save_training_checkpoint = save_checkpoint
-
-
 def load_checkpoint(
     path: str | os.PathLike[str],
     model: Any,
@@ -390,7 +383,5 @@ __all__ = [
     "load_checkpoint",
     "move_to_device",
     "save_checkpoint",
-    "save_training_checkpoint",
     "train_one_step",
-    "training_step",
 ]

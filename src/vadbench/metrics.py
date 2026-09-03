@@ -131,11 +131,6 @@ def average_precision_score(
     return float(np.sum(recall_delta * precision))
 
 
-# Concise aliases used by configuration files and downstream notebooks.
-roc_auc = roc_auc_score
-average_precision = average_precision_score
-
-
 def _validate_intervals(intervals: Any, *, expected_count: int | None = None) -> np.ndarray:
     array = np.asarray(intervals, dtype=np.float64)
     if array.ndim != 2 or array.shape[1] != 2:
@@ -282,11 +277,6 @@ def resample_scores_to_frames(scores: Any, num_frames: int) -> np.ndarray:
     return score_array[source_indices]
 
 
-# Descriptive aliases retained for callers that use "score" terminology.
-project_interval_scores = project_intervals_to_grid
-project_interval_scores_to_frames = project_intervals_to_frames
-
-
 def _flatten_video_values(values: Any, *, name: str) -> np.ndarray:
     if isinstance(values, Mapping):
         arrays = [np.asarray(value).reshape(-1) for value in values.values()]
@@ -408,21 +398,13 @@ def ucf_frame_metrics(
     return compute_ucf_frame_metrics(frame_labels, frame_scores, undefined=undefined).to_dict()
 
 
-evaluate_ucf_frame_metrics = ucf_frame_metrics
-
-
 __all__ = [
     "UCFFrameMetrics",
-    "average_precision",
     "average_precision_score",
     "compute_ucf_frame_metrics",
-    "evaluate_ucf_frame_metrics",
-    "project_interval_scores",
-    "project_interval_scores_to_frames",
     "project_intervals_to_frames",
     "project_intervals_to_grid",
     "resample_scores_to_frames",
-    "roc_auc",
     "roc_auc_score",
     "ucf_frame_metrics",
 ]

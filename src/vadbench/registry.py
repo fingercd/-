@@ -299,8 +299,6 @@ class EncoderRegistry:
 
 
 ENCODER_REGISTRY = EncoderRegistry()
-# Lower-case alias is convenient in interactive work and remains the same object.
-encoder_registry = ENCODER_REGISTRY
 
 
 def register_encoder(
@@ -337,6 +335,5 @@ __all__ = [
     "RegistryError",
     "UnknownEncoderError",
     "create_encoder",
-    "encoder_registry",
     "register_encoder",
 ]

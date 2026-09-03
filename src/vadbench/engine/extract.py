@@ -559,8 +559,4 @@ class FeatureExtractionEngine:
         return records
 
 
-# Shorter spelling for CLI orchestration code.
-ExtractionEngine = FeatureExtractionEngine
-
-
-__all__ = ["ExtractionEngine", "FeatureExtractionEngine"]
+__all__ = ["FeatureExtractionEngine"]

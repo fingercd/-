@@ -451,24 +451,13 @@ else:
         _require_torch()
 
 
-# Public synonyms used in papers/configurations with different naming habits.
-MILAttentionHead = AttentionMILHead
-TemporalClassificationHead = TemporalSupervisedHead
-ranking_loss = mil_ranking_loss
-temporal_bce_loss = temporal_supervised_loss
-
-
 __all__ = [
     "AttentionMILHead",
-    "MILAttentionHead",
     "MILHeadOutput",
     "TORCH_AVAILABLE",
-    "TemporalClassificationHead",
     "TemporalSupervisedHead",
     "TopKMILHead",
     "mil_ranking_loss",
-    "ranking_loss",
-    "temporal_bce_loss",
     "temporal_supervised_loss",
     "weakly_supervised_ranking_loss",
 ]

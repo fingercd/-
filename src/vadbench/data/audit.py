@@ -765,13 +765,8 @@ def audit_ucf_crime_dataset(
     return report
 
 
-# 供 CLI/调用方使用的短别名；语义仍固定为 UCF-Crime 官方划分审计。
-audit_dataset = audit_ucf_crime_dataset
-
-
 __all__ = [
     "DATASET_AUDIT_SCHEMA_VERSION",
     "OFFICIAL_UCF_CRIME_COUNTS",
-    "audit_dataset",
     "audit_ucf_crime_dataset",
 ]

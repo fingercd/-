@@ -559,9 +559,6 @@ class FeatureStore:
                         f"invalid feature index row {line_number}: {self.index_path}"
                     ) from error
 
-    # Compatibility aliases for downstream dataset implementations.
-    iter_index = iter_records
-
     def records(self) -> list[FeatureRecord]:
         return list(self.iter_records())
 
@@ -740,9 +737,8 @@ class FeatureStore:
             atomic_write_jsonl(self.index_path, (item.to_dict() for item in updated))
             return record
 
-    # Compatibility names that read naturally from extraction pipelines.
+    # Compatibility name used by extraction pipelines.
     put = write
-    write_feature = write
 
     def _load_npy(self, reference: ArrayReference, mmap_mode: str | None) -> np.ndarray:
         path = self._resolve(reference.path)

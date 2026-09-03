@@ -183,12 +183,6 @@ class KeepRecentCachePolicy:
         return self.compress(merge_cache_update(current, update))
 
 
-# Short aliases make configuration-to-object wiring readable while retaining
-# explicit public class names above.
-IdentityCompression = IdentityCachePolicy
-KeepRecentCompression = KeepRecentCachePolicy
-
-
 def build_cache_policy(
     name: str, *, max_tokens: int | None = None
 ) -> IdentityCachePolicy | KeepRecentCachePolicy:
@@ -208,9 +202,7 @@ def build_cache_policy(
 
 __all__ = [
     "IdentityCachePolicy",
-    "IdentityCompression",
     "KeepRecentCachePolicy",
-    "KeepRecentCompression",
     "append_cache_views",
     "build_cache_policy",
     "merge_cache_update",

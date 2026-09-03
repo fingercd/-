@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from .manifest import (
     MANIFEST_SCHEMA_VERSION,
-    Annotation,
     DatasetSplit,
     ManifestError,
     ManifestRecord,
@@ -15,12 +14,10 @@ from .manifest import (
     VideoManifestRecord,
     assert_no_split_leakage,
     canonical_video_id,
-    load_jsonl,
     load_manifest_jsonl,
     normalize_relative_path,
     validate_manifest,
     validate_manifest_pair,
-    write_jsonl,
     write_manifest_jsonl,
 )
 from .sampling import (
@@ -28,11 +25,9 @@ from .sampling import (
     FixedClipSample,
     SamplingError,
     Segment,
-    fixed_clip_indices,
     sample_32_segments,
     sample_fixed_clip,
     sample_uniform_segment_clips,
-    uniform_segment_clips,
     uniform_segments,
 )
 from .ucf_crime import (
@@ -59,7 +54,6 @@ from .ucf_crime import (
 __all__ = [
     "MANIFEST_SCHEMA_VERSION",
     "UCF_CRIME_CATEGORIES",
-    "Annotation",
     "ClipSample",
     "DatasetSplit",
     "FixedClipSample",
@@ -82,10 +76,8 @@ __all__ = [
     "build_ucf_crime_manifests",
     "canonical_video_id",
     "derive_ucf_test_split",
-    "fixed_clip_indices",
     "import_ucf_crime",
     "infer_ucf_category",
-    "load_jsonl",
     "load_manifest_jsonl",
     "normalize_relative_path",
     "normalize_ucf_category",
@@ -97,11 +89,9 @@ __all__ = [
     "sample_32_segments",
     "sample_fixed_clip",
     "sample_uniform_segment_clips",
-    "uniform_segment_clips",
     "uniform_segments",
     "validate_manifest",
     "validate_manifest_pair",
-    "write_jsonl",
     "write_manifest_jsonl",
     "write_ucf_crime_manifests",
 ]

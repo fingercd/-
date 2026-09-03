@@ -441,9 +441,8 @@ class VideoManifestRecord:
         )
 
 
-# 较短别名供调用方使用；协议文档仍以完整名称为准。
+# 协议文档承诺保留的兼容名称。
 ManifestRecord = VideoManifestRecord
-Annotation = SupervisionAnnotation
 
 
 def assert_no_split_leakage(records: Iterable[VideoManifestRecord]) -> None:
@@ -541,11 +540,6 @@ def write_manifest_jsonl(
     output_path = Path(path)
     atomic_write_jsonl(output_path, (record.to_dict() for record in items))
     return output_path
-
-
-# 兼容直观短名。
-load_jsonl = load_manifest_jsonl
-write_jsonl = write_manifest_jsonl
 
 
 def validate_manifest_pair(

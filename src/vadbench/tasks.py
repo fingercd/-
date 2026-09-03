@@ -602,16 +602,11 @@ def build_task(
     raise ValueError(f"unknown task: {task}")
 
 
-# Short alias retained for configuration readability.
-WeakSupervisionTask = WeaklySupervisedMILTask
-
-
 __all__ = [
     "EncoderFeatures",
     "TaskStepOutput",
     "TemporalTargetBatch",
     "TemporalSupervisedTask",
-    "WeakSupervisionTask",
     "WeaklySupervisedMILTask",
     "build_task",
     "build_temporal_targets",

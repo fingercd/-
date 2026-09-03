@@ -312,12 +312,7 @@ class VideoMAEv2Adapter(VideoEncoderAdapter):
         return output
 
 
-# Common spelling used by config/registry code.
-VideoMAE2Adapter = VideoMAEv2Adapter
-
-
 __all__ = [
     "DEFAULT_CAPABILITIES",
-    "VideoMAE2Adapter",
     "VideoMAEv2Adapter",
 ]

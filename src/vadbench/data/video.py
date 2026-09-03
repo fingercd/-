@@ -490,8 +490,3 @@ def iter_streaming_chunk_batches(
                 )
                 chunk_index += 1
                 chunk_start += chunk_frames * stride
-
-
-# CLI/调用方可选的直观别名。
-fixed_segment_batches_from_manifest = iter_fixed_segment_batches
-streaming_chunk_batches_from_manifest = iter_streaming_chunk_batches

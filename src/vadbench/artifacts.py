@@ -626,10 +626,6 @@ class ArtifactStore:
             yield CacheTelemetryRecord.from_dict(value)
 
 
-# Longer name remains explicit for callers that manage other artifact stores.
-RunArtifactStore = ArtifactStore
-
-
 __all__ = [
     "ArtifactStore",
     "CACHE_TELEMETRY_SCHEMA_VERSION",
@@ -638,7 +634,6 @@ __all__ = [
     "PREDICTION_SCHEMA_VERSION",
     "PredictionRecord",
     "RUN_SCHEMA_VERSION",
-    "RunArtifactStore",
     "RunProvenance",
     "collect_git_provenance",
     "collect_runtime_provenance",
