@@ -1,4 +1,4 @@
-"""Tests for the 25-target checkpoint provenance registry.
+"""Tests for the runtime checkpoint provenance registry.
 
 The registry is intentionally richer than :class:`CheckpointSpec`: the
 runtime loader consumes the stable core fields while this test protects the
@@ -32,25 +32,18 @@ def _raw_registry() -> dict[str, Any]:
     return data
 
 
-def test_registry_covers_exactly_the_25_catalog_checkpoint_ids() -> None:
+def test_registry_covers_exactly_the_runtime_catalog_checkpoint_ids() -> None:
     raw = _raw_registry()
     entries = raw["checkpoints"]
     catalog = load_integration_catalog(CATALOG_PATH, project_root=PROJECT_ROOT)
     specs = load_checkpoint_registry(REGISTRY_PATH)
 
     expected_ids = {record.checkpoint.registry_id for record in catalog.integrations}
-    assert len(catalog) == 25
-    assert len(entries) == 25
+    assert len(catalog) == 21
+    assert len(entries) == 21
     assert set(entries) == expected_ids
     assert set(specs) == expected_ids
-    assert len({str(value.get("adapter")) for value in entries.values()}) == 25
-
-    # A shared base is allowed, but each integration still has its own record
-    # and adapter identity (MuKV must not silently become HERMES).
-    hermes = entries["hermes-llava-ov-0.5b"]
-    mukv = entries["mukv-default"]
-    assert hermes["adapter"] != mukv["adapter"]
-    assert mukv["base_checkpoint"] == "hermes-llava-ov-0.5b"
+    assert len({str(value.get("adapter")) for value in entries.values()}) == 21
 
 
 def test_every_entry_has_traceable_asset_metadata() -> None:
@@ -128,7 +121,7 @@ def test_server_verified_assets_match_registered_sha256(
 def test_planned_entries_require_native_checkpoint_without_alias() -> None:
     entries = _raw_registry()["checkpoints"]
     planned = [entry for entry in entries.values() if entry.get("status") == "planned"]
-    assert len(planned) == 9
+    assert len(planned) == 5
     for entry in planned:
         assert entry.get("validation_scope") is None
         assert entry.get("local_path") != "weights/r2plus1d_18/model.pth"

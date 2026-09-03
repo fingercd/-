@@ -4,7 +4,7 @@ adapter: streaming_vlm
 family: streaming_vlm
 constructor:
   model_name: mit-han-lab/StreamingVLM
-  checkout_path: external/streaming-vlm
+  checkout_path: external-v2/streaming-vlm
   model_path: weights/streaming-vlm
   runtime: in_process
   device: cpu

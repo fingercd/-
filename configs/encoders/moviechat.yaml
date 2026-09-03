@@ -4,8 +4,8 @@ adapter: moviechat
 family: streaming_vlm
 constructor:
   model_name: Enxin/MovieChat-vicuna
-  checkout_path: external/moviechat
-  model_path: weights/moviechat
+  checkout_path: external-v2/moviechat
+  model_path: weights-v2/moviechat
   runtime: external_python
   device: cuda
   prompt: Describe the visible video content, actions, objects, and temporal changes
@@ -22,7 +22,7 @@ checkpoint:
   model_id: Enxin/MovieChat-vicuna
   revision: ba9bb802ea209c6d8e8b4333ec917ae3aee55b1d
   license: bsd-3-clause
-  local_path: weights/moviechat
+  local_path: weights-v2/moviechat
 input_profile:
   clip_frames: 4
   frame_stride: 2

@@ -4,7 +4,7 @@ adapter: videochat_online
 family: streaming_vlm
 constructor:
   model_name: MCG-NJU/VideoChatOnline-4B
-  checkout_path: external/videochat-online
+  checkout_path: external-v2/videochat-online
   model_path: weights/videochat-online
   runtime: in_process
   device: cpu

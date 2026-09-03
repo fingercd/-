@@ -64,7 +64,7 @@ class _FakeUpstream:
         return {"features": features, "pooled": pooled}
 
 
-@pytest.mark.parametrize("adapter_id", tuple(ADAPTERS))
+@pytest.mark.parametrize("adapter_id", ("internvideo2", "videomamba", "vjepa2"))
 def test_foundation_ids_construct_through_lazy_registry(adapter_id: str) -> None:
     fake = _FakeUpstream()
     adapter = ENCODER_REGISTRY.create(adapter_id, encoder=fake)

@@ -37,8 +37,6 @@ EXPECTED_IDS = {
     "video_swin",
     "videomae",
     "videomaev2",
-    "uniformerv2",
-    "umt",
     "internvideo2",
     "videomamba",
     "vjepa2",
@@ -49,9 +47,7 @@ EXPECTED_IDS = {
     "ma_lmm",
     "moviechat",
     "streaming_vlm",
-    "infinipot_v",
     "hermes_llava_ov",
-    "mukv",
 }
 
 EXPECTED_FIXED_SMOKE_PROFILES = {
@@ -97,10 +93,10 @@ def _write_catalog(tmp_path: Path, data: dict[str, Any]) -> Path:
     return path
 
 
-def test_catalog_contains_exactly_the_25_planned_targets() -> None:
+def test_catalog_contains_only_the_21_runtime_targets() -> None:
     catalog = load_integration_catalog(CATALOG_PATH, project_root=PROJECT_ROOT)
 
-    assert len(catalog) == 25
+    assert len(catalog) == 21
     assert len(catalog.ids) == len(set(catalog.ids))
     assert set(catalog.ids) == EXPECTED_IDS
     assert set(BUILTIN_ENCODER_CONFIGS) == EXPECTED_IDS
@@ -171,7 +167,7 @@ def test_default_catalog_falls_back_to_packaged_resource(tmp_path: Path, monkeyp
     assert default_catalog_path(missing_checkout) == packaged_catalog.resolve()
     catalog = load_default_integration_catalog(missing_checkout)
     assert catalog.source_path == packaged_catalog.resolve()
-    assert len(catalog) == 25
+    assert len(catalog) == 21
     assert set(catalog.ids) == EXPECTED_IDS
 
 
@@ -219,7 +215,7 @@ def test_fixed_family_routes_and_smoke_profiles_are_pinned() -> None:
     )
     assert video_swin.backend == "torchvision"
     assert video_swin.environment.runtime == "in_process"
-    assert video_swin.environment.profile == "torchvision-video"
+    assert video_swin.environment.profile == "classic-video-v2"
     assert video_swin.feature_stage == "backbone_tokens"
 
     actual_profiles = {}
@@ -260,7 +256,7 @@ def test_all_targets_have_definitions_but_only_native_routes_are_smoke_pass() ->
     catalog = DEFAULT_INTEGRATION_CATALOG
     assert sum(record.status == "smoke_pass" for record in catalog.integrations) == 14
     assert sum(record.status == "planned" for record in catalog.integrations) == 0
-    assert sum(record.status == "blocked" for record in catalog.integrations) == 11
+    assert sum(record.status == "blocked" for record in catalog.integrations) == 7
     for record in catalog.integrations:
         definition = load_encoder_definition(record.id, project_root=PROJECT_ROOT)
         assert definition["adapter"] == record.id
@@ -289,7 +285,7 @@ def test_registration_and_listing_do_not_import_heavy_model_dependencies(monkeyp
 @pytest.mark.parametrize(
     ("mutation", "message"),
     [
-        (lambda data: data["integrations"].pop(), "恰好包含 25 项"),
+        (lambda data: data["integrations"].clear(), "integrations 不能为空"),
         (
             lambda data: data["integrations"][1].update({"id": data["integrations"][0]["id"]}),
             "id 重复",

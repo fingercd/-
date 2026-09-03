@@ -4,7 +4,7 @@ adapter: hermes_llava_ov
 family: streaming_vlm
 
 constructor:
-  checkout_path: external/hermes
+  checkout_path: external-v2/hermes
   model_path: weights/hermes-llava-ov-0.5b
   kv_size: 2000
   sample_fps: 0.5

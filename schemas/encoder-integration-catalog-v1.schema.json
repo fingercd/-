@@ -4,15 +4,17 @@
   "title": "VADBench encoder integration catalog v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "integrations"],
+  "required": [
+    "schema_version",
+    "integrations"
+  ],
   "properties": {
     "schema_version": {
       "const": 1
     },
     "integrations": {
       "type": "array",
-      "minItems": 25,
-      "maxItems": 25,
+      "minItems": 1,
       "items": {
         "$ref": "#/$defs/integration"
       }
@@ -31,10 +33,16 @@
     "environment": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["runtime", "profile"],
+      "required": [
+        "runtime",
+        "profile"
+      ],
       "properties": {
         "runtime": {
-          "enum": ["in_process", "external_python"]
+          "enum": [
+            "in_process",
+            "external_python"
+          ]
         },
         "profile": {
           "$ref": "#/$defs/identifier"
@@ -44,13 +52,20 @@
     "checkpoint": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["registry_id", "status"],
+      "required": [
+        "registry_id",
+        "status"
+      ],
       "properties": {
         "registry_id": {
           "$ref": "#/$defs/identifier"
         },
         "status": {
-          "enum": ["planned", "registered", "verified"]
+          "enum": [
+            "planned",
+            "registered",
+            "verified"
+          ]
         }
       }
     },
@@ -124,7 +139,10 @@
           "type": "boolean"
         },
         "fixed_num_frames": {
-          "type": ["integer", "null"],
+          "type": [
+            "integer",
+            "null"
+          ],
           "minimum": 1
         },
         "min_frames": {
@@ -132,7 +150,10 @@
           "minimum": 1
         },
         "max_frames": {
-          "type": ["integer", "null"],
+          "type": [
+            "integer",
+            "null"
+          ],
           "minimum": 1
         }
       }
@@ -189,7 +210,11 @@
           "$ref": "#/$defs/identifier"
         },
         "run_mode": {
-          "enum": ["fixed", "long", "streaming"]
+          "enum": [
+            "fixed",
+            "long",
+            "streaming"
+          ]
         },
         "feature_stage": {
           "enum": [
@@ -227,7 +252,9 @@
                 "const": "streaming"
               }
             },
-            "required": ["run_mode"]
+            "required": [
+              "run_mode"
+            ]
           },
           "then": {
             "properties": {
@@ -237,7 +264,9 @@
                     "minimum": 2
                   }
                 },
-                "required": ["chunks"]
+                "required": [
+                  "chunks"
+                ]
               }
             }
           }

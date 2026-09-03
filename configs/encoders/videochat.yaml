@@ -4,8 +4,8 @@ adapter: videochat
 family: video_vlm
 constructor:
   model_name: OpenGVLab/VideoChat-7B
-  checkout_path: external/videochat
-  model_path: weights/videochat
+  checkout_path: external-v2/videochat
+  model_path: weights-v2/videochat
   runtime: external_python
   device: cuda
   prompt: Describe the visible video content, actions, objects, and temporal changes
@@ -20,7 +20,7 @@ checkpoint:
   model_id: OpenGVLab/VideoChat-7B
   revision: 4dd8210b030374bb0c510a57dfbe916f70d3ef71
   license: mit
-  local_path: weights/videochat
+  local_path: weights-v2/videochat
 input_profile:
   clip_frames: 32
   frame_stride: 2

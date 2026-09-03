@@ -4,7 +4,7 @@ adapter: longvu
 family: long_video_vlm
 constructor:
   model_name: Vision-CAIR/LongVU_Qwen2_7B
-  checkout_path: external/longvu
+  checkout_path: external-v2/longvu
   model_path: weights/longvu
   runtime: in_process
   device: cpu

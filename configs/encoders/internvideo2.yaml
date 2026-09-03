@@ -4,8 +4,8 @@ adapter: internvideo2
 family: video_foundation
 constructor:
   model_name: OpenGVLab/InternVideo2-Stage2_1B-224p-f4
-  model_path: weights/internvideo2
-  checkout_path: external/internvideo2
+  model_path: weights-v2/internvideo2
+  checkout_path: external-v2/internvideo2
   runtime: external_python
   upstream_entrypoint: vadbench_upstream:load_model
   num_frames: 16
@@ -18,7 +18,7 @@ checkpoint:
   model_id: OpenGVLab/InternVideo2-Stage2_1B-224p-f4
   revision: planned
   license: apache-2.0
-  local_path: weights/internvideo2
+  local_path: weights-v2/internvideo2
 capabilities:
   supports_fixed_clip: true
   supports_streaming: false

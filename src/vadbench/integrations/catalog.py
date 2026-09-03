@@ -19,7 +19,6 @@ from vadbench.contracts import EncoderCapabilities
 from vadbench.registry import EncoderRegistry
 
 CATALOG_SCHEMA_VERSION = 1
-EXPECTED_INTEGRATION_COUNT = 25
 
 _IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9_.-]*$")
 _RELATIVE_YAML_PATH = re.compile(
@@ -411,10 +410,8 @@ def load_integration_catalog(
     raw_integrations = data["integrations"]
     if not isinstance(raw_integrations, list):
         raise IntegrationCatalogError("integrations 必须是列表")
-    if len(raw_integrations) != EXPECTED_INTEGRATION_COUNT:
-        raise IntegrationCatalogError(
-            f"catalog 必须恰好包含 {EXPECTED_INTEGRATION_COUNT} 项，实际为 {len(raw_integrations)}"
-        )
+    if not raw_integrations:
+        raise IntegrationCatalogError("integrations 不能为空")
     catalog = IntegrationCatalog(
         schema_version=CATALOG_SCHEMA_VERSION,
         integrations=tuple(
@@ -472,7 +469,6 @@ def register_catalog_integrations(
 
 __all__ = [
     "CATALOG_SCHEMA_VERSION",
-    "EXPECTED_INTEGRATION_COUNT",
     "CheckpointReference",
     "IntegrationCatalog",
     "IntegrationCatalogError",

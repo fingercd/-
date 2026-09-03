@@ -4,8 +4,8 @@ adapter: ma_lmm
 family: streaming_vlm
 constructor:
   model_name: boheumd/MA-LMM
-  checkout_path: external/ma-lmm
-  model_path: weights/ma-lmm
+  checkout_path: external-v2/ma-lmm
+  model_path: weights-v2/ma-lmm
   runtime: external_python
   device: cuda
   prompt: Describe the visible video content, actions, objects, and temporal changes
@@ -22,7 +22,7 @@ checkpoint:
   model_id: boheumd/MA-LMM
   revision: ffe9fa9e89757e4433012029f19286c3c280ab1d
   license: mit
-  local_path: weights/ma-lmm
+  local_path: weights-v2/ma-lmm
 input_profile:
   clip_frames: 4
   frame_stride: 2

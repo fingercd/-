@@ -20,7 +20,7 @@ def test_filter_and_preflight_support_id_runtime_and_mode() -> None:
         integration_ids=["videomaev2", "hermes_llava_ov"],
     )
     assert [item.id for item in selected] == ["videomaev2", "hermes_llava_ov"]
-    assert len(preflight_integrations(DEFAULT_INTEGRATION_CATALOG, run_modes=["streaming"])) == 7
+    assert len(preflight_integrations(DEFAULT_INTEGRATION_CATALOG, run_modes=["streaming"])) == 5
 
 
 def test_matrix_uses_runtime_hooks_and_continues_after_failure(tmp_path: Path) -> None:

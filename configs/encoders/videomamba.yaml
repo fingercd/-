@@ -5,7 +5,7 @@ family: video_foundation
 constructor:
   model_name: OpenGVLab/VideoMamba
   model_path: weights/videomamba/videomamba_t16_k400_f16_res224.pth
-  checkout_path: external/videomamba
+  checkout_path: external-v2/videomamba
   runtime: in_process
   num_frames: 16
   image_size: 224

@@ -11,7 +11,7 @@ integrations:
   feature_stage: pooled
   environment: &id002
     runtime: in_process
-    profile: torchvision-video
+    profile: classic-video-v2
   upstream_lock: integrations/r2plus1d_18/upstream.lock.yaml
   checkpoint:
     registry_id: r2plus1d_18-default
@@ -44,7 +44,7 @@ integrations:
   feature_stage: pooled
   environment: &id003
     runtime: in_process
-    profile: pytorchvideo
+    profile: classic-video-v2
   upstream_lock: integrations/x3d/upstream.lock.yaml
   checkpoint:
     registry_id: x3d-default
@@ -109,7 +109,7 @@ integrations:
   feature_stage: fc_features
   environment:
     runtime: external_python
-    profile: legacy-c3d
+    profile: classic-video-v2
   upstream_lock: integrations/c3d/upstream.lock.yaml
   checkpoint:
     registry_id: c3d-default
@@ -153,7 +153,7 @@ integrations:
   feature_stage: last_hidden_state
   environment: &id004
     runtime: in_process
-    profile: transformers-video
+    profile: classic-video-v2
   upstream_lock: integrations/timesformer/upstream.lock.yaml
   checkpoint:
     registry_id: timesformer-default
@@ -218,7 +218,7 @@ integrations:
   feature_stage: observed_backbone
   environment:
     runtime: in_process
-    profile: videomaev2
+    profile: foundation-video-v2
   upstream_lock: integrations/videomaev2/upstream.lock.yaml
   checkpoint:
     registry_id: videomaev2-base-hf
@@ -240,42 +240,6 @@ integrations:
     fixed_num_frames: 16
     min_frames: 16
     max_frames: 16
-- id: uniformerv2
-  display_name: UniFormerV2
-  family: fixed_clip
-  status: blocked
-  definition: configs/encoders/uniformerv2.yaml
-  adapter_target: vadbench.integrations.foundation.uniformerv2:UniFormerV2Adapter
-  backend: uniformerv2
-  run_mode: fixed
-  feature_stage: pooled
-  environment:
-    runtime: external_python
-    profile: uniformerv2
-  upstream_lock: integrations/uniformerv2/upstream.lock.yaml
-  checkpoint:
-    registry_id: uniformerv2-default
-    status: planned
-  smoke_profile: *id005
-  capabilities: *id001
-- id: umt
-  display_name: UMT
-  family: video_foundation
-  status: blocked
-  definition: configs/encoders/umt.yaml
-  adapter_target: vadbench.integrations.foundation.umt:UMTAdapter
-  backend: umt
-  run_mode: fixed
-  feature_stage: backbone_tokens
-  environment:
-    runtime: external_python
-    profile: foundation-umt
-  upstream_lock: integrations/umt/upstream.lock.yaml
-  checkpoint:
-    registry_id: umt-default
-    status: planned
-  smoke_profile: *id005
-  capabilities: *id001
 - id: internvideo2
   display_name: InternVideo2
   family: video_foundation
@@ -287,7 +251,7 @@ integrations:
   feature_stage: backbone_tokens
   environment:
     runtime: external_python
-    profile: foundation-internvideo2
+    profile: foundation-video-v2
   upstream_lock: integrations/internvideo2/upstream.lock.yaml
   checkpoint:
     registry_id: internvideo2-default
@@ -305,7 +269,7 @@ integrations:
   feature_stage: backbone_tokens
   environment:
     runtime: in_process
-    profile: videomamba
+    profile: foundation-video-v2
   upstream_lock: integrations/videomamba/upstream.lock.yaml
   checkpoint:
     registry_id: videomamba-default
@@ -323,7 +287,7 @@ integrations:
   feature_stage: backbone_tokens
   environment:
     runtime: in_process
-    profile: vjepa2
+    profile: foundation-video-v2
   upstream_lock: integrations/vjepa2/upstream.lock.yaml
   checkpoint:
     registry_id: vjepa2-default
@@ -346,7 +310,7 @@ integrations:
   feature_stage: projected_visual
   environment:
     runtime: in_process
-    profile: longvu
+    profile: visual-vlm-v2
   upstream_lock: integrations/longvu/upstream.lock.yaml
   checkpoint:
     registry_id: longvu-default
@@ -379,7 +343,7 @@ integrations:
   feature_stage: projected_visual
   environment:
     runtime: external_python
-    profile: videochat
+    profile: visual-vlm-v2
   upstream_lock: integrations/videochat/upstream.lock.yaml
   checkpoint:
     registry_id: videochat-default
@@ -397,7 +361,7 @@ integrations:
   feature_stage: visual_memory
   environment:
     runtime: in_process
-    profile: videochat-online
+    profile: visual-vlm-v2
   upstream_lock: integrations/videochat_online/upstream.lock.yaml
   checkpoint:
     registry_id: videochat_online-default
@@ -430,7 +394,7 @@ integrations:
   feature_stage: projected_visual
   environment:
     runtime: in_process
-    profile: videochat-flash
+    profile: visual-vlm-v2
   upstream_lock: integrations/videochat_flash/upstream.lock.yaml
   checkpoint:
     registry_id: videochat_flash-default
@@ -453,7 +417,7 @@ integrations:
   feature_stage: visual_memory
   environment:
     runtime: external_python
-    profile: ma-lmm
+    profile: visual-vlm-v2
   upstream_lock: integrations/ma_lmm/upstream.lock.yaml
   checkpoint:
     registry_id: ma_lmm-default
@@ -471,7 +435,7 @@ integrations:
   feature_stage: visual_memory
   environment:
     runtime: external_python
-    profile: moviechat
+    profile: visual-vlm-v2
   upstream_lock: integrations/moviechat/upstream.lock.yaml
   checkpoint:
     registry_id: moviechat-default
@@ -489,7 +453,7 @@ integrations:
   feature_stage: decoder_contextual
   environment:
     runtime: in_process
-    profile: streaming-vlm
+    profile: stream-kv-v2
   upstream_lock: integrations/streaming_vlm/upstream.lock.yaml
   checkpoint:
     registry_id: streaming_vlm-default
@@ -500,7 +464,7 @@ integrations:
     frame_stride: 1
     image_size: 448
     chunks: 2
-  capabilities: &id010
+  capabilities:
     supports_fixed_clip: false
     supports_streaming: true
     supports_kv_cache: true
@@ -511,24 +475,6 @@ integrations:
     fixed_num_frames: null
     min_frames: 1
     max_frames: null
-- id: infinipot_v
-  display_name: InfiniPot-V
-  family: streaming_vlm
-  status: blocked
-  definition: configs/encoders/infinipot-v.yaml
-  adapter_target: vadbench.integrations.long_video.infinipot_v:InfiniPotVAdapter
-  backend: infinipot-v
-  run_mode: streaming
-  feature_stage: decoder_contextual
-  environment:
-    runtime: external_python
-    profile: infinipot-v
-  upstream_lock: integrations/infinipot_v/upstream.lock.yaml
-  checkpoint:
-    registry_id: infinipot_v-default
-    status: planned
-  smoke_profile: *id008
-  capabilities: *id010
 - id: hermes_llava_ov
   display_name: HERMES + LLaVA-OneVision
   family: streaming_vlm
@@ -540,7 +486,7 @@ integrations:
   feature_stage: projected_visual
   environment:
     runtime: in_process
-    profile: hermes
+    profile: stream-kv-v2
   upstream_lock: integrations/hermes/upstream.lock.yaml
   checkpoint:
     registry_id: hermes-llava-ov-0.5b
@@ -557,21 +503,3 @@ integrations:
     fixed_num_frames: null
     min_frames: 1
     max_frames: null
-- id: mukv
-  display_name: MuKV
-  family: streaming_vlm
-  status: blocked
-  definition: configs/encoders/mukv.yaml
-  adapter_target: vadbench.integrations.long_video.mukv:MuKVAdapter
-  backend: mukv
-  run_mode: streaming
-  feature_stage: decoder_contextual
-  environment:
-    runtime: external_python
-    profile: mukv
-  upstream_lock: integrations/mukv/upstream.lock.yaml
-  checkpoint:
-    registry_id: mukv-default
-    status: planned
-  smoke_profile: *id008
-  capabilities: *id010
