@@ -222,6 +222,8 @@ def test_fixed_long_video_targets_register_construct_and_normalize_bthwc(
     assert output.features.shape == (1, 3, 5)
     assert output.pooled.shape == (1, 5)
     assert output.timeline.num_tokens == 3
+    np.testing.assert_array_equal(output.timeline.start_s, [[0.0, 0.25, 0.5]])
+    np.testing.assert_array_equal(output.timeline.source_frame_start, [[0, 1, 2]])
     assert output.aux["integration_id"] == encoder_id
     assert output.aux["feature_stage"] == stage
     assert output.aux["prompt"] == DEFAULT_NEUTRAL_PROMPT
@@ -235,6 +237,32 @@ def test_fixed_long_video_targets_register_construct_and_normalize_bthwc(
             "feature_stage": stage,
         }
     ]
+
+
+def test_json_worker_preserves_supplied_pooled_and_timeline() -> None:
+    class Worker:
+        def encode(self, batch: ClipBatch, **_: Any) -> dict[str, Any]:
+            return {
+                "output": {
+                    "features": [[[1.0, 2.0], [3.0, 4.0]]],
+                    "pooled": [[9.0, 8.0]],
+                },
+                "timeline": {
+                    "start_s": [[0.0, 0.5]],
+                    "end_s": [[0.25, 0.75]],
+                    "source_frame_start": [[0, 2]],
+                    "source_frame_end": [[1, 3]],
+                },
+                "aux": {"worker": "json"},
+            }
+
+    output = LongVUAdapter(worker=Worker()).encode(_batch())
+
+    assert isinstance(output.features, np.ndarray)
+    assert isinstance(output.pooled, np.ndarray)
+    np.testing.assert_array_equal(output.pooled, [[9.0, 8.0]])
+    np.testing.assert_array_equal(output.timeline.source_frame_start, [[0, 2]])
+    assert output.aux["worker"] == "json"
 
 
 @pytest.mark.parametrize(("encoder_id", "adapter_cls", "target", "stage"), STREAM_TARGETS)

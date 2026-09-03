@@ -289,12 +289,7 @@ def _timeline_for_batch(batch: ClipBatch, token_count: int) -> TokenTimeline:
     )
 
 
-# Public spelling for custom upstream adapters that want to reuse the exact
-# timeline policy without depending on a private helper name.
-build_token_timeline = _timeline_for_batch
-
-
-def _timeline_from_value(value: Any, batch: ClipBatch, token_count: int) -> TokenTimeline | None:
+def _timeline_from_value(value: Any) -> TokenTimeline | None:
     if isinstance(value, TokenTimeline):
         return value
     if not isinstance(value, Mapping):
@@ -318,35 +313,6 @@ def _timeline_from_value(value: Any, batch: ClipBatch, token_count: int) -> Toke
     )
 
 
-def _with_canonical_aux(
-    output: EncoderOutput,
-    *,
-    integration_id: str,
-    feature_stage: str,
-    prompt: str,
-    cache_mode: str,
-    extra: Mapping[str, Any] | None = None,
-) -> EncoderOutput:
-    aux = dict(output.aux)
-    aux.update(
-        {
-            "integration_id": integration_id,
-            "feature_stage": feature_stage,
-            "prompt": prompt,
-            "cache_mode": cache_mode,
-            "implementation_source": "external_worker_facade",
-        }
-    )
-    if extra:
-        aux.update(extra)
-    return EncoderOutput(
-        features=output.features,
-        pooled=output.pooled,
-        timeline=output.timeline,
-        aux=aux,
-    )
-
-
 def _validate_json_aux(output: EncoderOutput, integration_id: str) -> None:
     try:
         json.dumps(_jsonable(dict(output.aux)), ensure_ascii=False, allow_nan=False)
@@ -358,132 +324,108 @@ def _validate_json_aux(output: EncoderOutput, integration_id: str) -> None:
         ) from exc
 
 
+def _pooled_from(value: Any) -> Any | None:
+    for name in ("pooler_output", "pooled_output", "pooled"):
+        candidate = value.get(name) if isinstance(value, Mapping) else getattr(value, name, None)
+        if candidate is not None:
+            return candidate
+    return None
+
+
 def _normalise_output(
     raw: Any,
-    batch: ClipBatch,
+    batch: ClipBatch | None,
     *,
     integration_id: str,
     feature_stage: str,
     prompt: str,
     cache_mode: str,
     preprocess_profile: str = "bthwc_uint8",
+    extra_aux: Mapping[str, Any] | None = None,
 ) -> EncoderOutput:
     """Normalize tensors, model-output objects, and worker mappings."""
 
     if isinstance(raw, EncoderOutput):
-        validate_encoder_output(raw, batch)
-        canonical = _with_canonical_aux(
-            raw,
-            integration_id=integration_id,
-            feature_stage=feature_stage,
-            prompt=prompt,
-            cache_mode=cache_mode,
+        if batch is not None:
+            validate_encoder_output(raw, batch)
+        supplied_aux = raw.aux
+    else:
+        supplied_aux = (
+            raw.get("aux")
+            if isinstance(raw, Mapping) and isinstance(raw.get("aux"), Mapping)
+            else None
         )
+
+    aux = {
+        **dict(supplied_aux or {}),
+        "integration_id": integration_id,
+        "feature_stage": feature_stage,
+        "prompt": prompt,
+        "cache_mode": cache_mode,
+        "implementation_source": "external_worker_facade",
+        **dict(extra_aux or {}),
+    }
+    if isinstance(raw, EncoderOutput):
+        output = EncoderOutput(
+            features=raw.features,
+            pooled=raw.pooled,
+            timeline=raw.timeline,
+            aux=aux,
+        )
+    else:
+        if batch is None:
+            raise LongVideoWorkerError(
+                f"{integration_id} finalize 返回原始张量但没有可用 chunk timeline",
+                integration_id=integration_id,
+                code="invalid_output",
+            )
         try:
-            validate_output_health(canonical)
-            _validate_json_aux(canonical, integration_id)
+            payload = raw.get("output", raw) if isinstance(raw, Mapping) else raw
+            pooled = _pooled_from(raw) if isinstance(raw, Mapping) else None
+            supplied_timeline = raw.get("timeline") if isinstance(raw, Mapping) else None
+            selected, _ = select_feature_tensor(payload, batch_size=batch.batch_size)
+            if pooled is None and isinstance(payload, Mapping):
+                pooled = _pooled_from(payload)
+            array_like_output = not hasattr(selected, "shape")
+            if array_like_output:
+                selected = np.asarray(selected)
+            if isinstance(payload, Mapping):
+                payload = {"features": selected}
+            elif array_like_output:
+                payload = selected
+            if pooled is not None and not hasattr(pooled, "shape"):
+                pooled = np.asarray(pooled)
+            shape = _shape(selected)
+            timeline = _timeline_from_value(supplied_timeline) or _timeline_for_batch(
+                batch, 1 if len(shape) == 2 else shape[1]
+            )
+            output = normalize_encoder_output(
+                payload,
+                timeline=timeline,
+                feature_stage=feature_stage,
+                pooled=pooled,
+                sequence_source=(
+                    "worker_output" if isinstance(raw, Mapping) else "upstream_output"
+                ),
+                preprocess_profile=preprocess_profile,
+                aux=aux,
+            )
         except Exception as exc:
             raise LongVideoWorkerError(
-                f"{integration_id} worker 输出包含非有限值或非法时间轴: {exc}",
+                f"{integration_id} worker 输出不满足 EncoderOutput 契约: {exc}",
                 integration_id=integration_id,
-                code="invalid_output_health",
+                code="invalid_output",
             ) from exc
-        return canonical
-
-    payload = raw
-    supplied_pooled: Any | None = None
-    supplied_timeline: Any | None = None
-    supplied_aux: Mapping[str, Any] | None = None
-    if isinstance(raw, Mapping):
-        supplied_timeline = raw.get("timeline")
-        supplied_pooled = raw.get("pooled", raw.get("pooler_output"))
-        candidate = raw.get("output", _MISSING)
-        if candidate is not _MISSING:
-            payload = candidate
-        elif "features" in raw:
-            payload = raw
-        supplied_aux = raw.get("aux") if isinstance(raw.get("aux"), Mapping) else None
-
     try:
-        selected, _ = select_feature_tensor(payload, batch_size=batch.batch_size)
-    except Exception as exc:
-        raise LongVideoWorkerError(
-            f"{integration_id} worker 未返回可识别的特征张量: {exc}",
-            integration_id=integration_id,
-            code="invalid_output",
-        ) from exc
-    # JSON subprocess workers naturally return nested lists.  The common
-    # normalizer intentionally preserves backend tensors by identity, so make
-    # list candidates explicit arrays here before handing them over.
-    if not hasattr(selected, "shape"):
-        selected = np.asarray(selected)
-        if isinstance(payload, Mapping):
-            payload = dict(payload)
-            replaced = False
-            for field_name in (
-                "features",
-                "output",
-                "last_hidden_state",
-                "video_features",
-                "visual_features",
-                "projected_visual",
-                "visual_memory",
-                "decoder_contextual",
-            ):
-                if field_name in payload and not hasattr(payload[field_name], "shape"):
-                    payload[field_name] = selected
-                    replaced = True
-                    break
-            if not replaced:
-                # Nested ``hidden_states``/tuple outputs are made explicit so
-                # the dependency-free normalizer cannot accidentally preserve a
-                # Python list as the public feature tensor.
-                payload = {"features": selected}
-        else:
-            payload = selected
-    if supplied_pooled is not None and not hasattr(supplied_pooled, "shape"):
-        supplied_pooled = np.asarray(supplied_pooled)
-    selected_shape = _shape(selected)
-    token_count = 1 if len(selected_shape) == 2 else selected_shape[1]
-    timeline = _timeline_from_value(supplied_timeline, batch, token_count)
-    if timeline is None:
-        timeline = _timeline_for_batch(batch, token_count)
-    try:
-        output = normalize_encoder_output(
-            payload,
-            timeline=timeline,
-            feature_stage=feature_stage,
-            pooled=supplied_pooled,
-            sequence_source=("worker_output" if isinstance(raw, Mapping) else "upstream_output"),
-            preprocess_profile=preprocess_profile,
-            aux=supplied_aux,
-        )
-    except Exception as exc:
-        raise LongVideoWorkerError(
-            f"{integration_id} worker 输出不满足 EncoderOutput 契约: {exc}",
-            integration_id=integration_id,
-            code="invalid_output",
-        ) from exc
-    canonical = _with_canonical_aux(
-        output,
-        integration_id=integration_id,
-        feature_stage=feature_stage,
-        prompt=prompt,
-        cache_mode=cache_mode,
-    )
-    try:
-        validate_output_health(canonical)
-        _validate_json_aux(canonical, integration_id)
+        validate_output_health(output)
     except Exception as exc:
         raise LongVideoWorkerError(
             f"{integration_id} worker 输出包含非有限值或非法时间轴: {exc}",
             integration_id=integration_id,
             code="invalid_output_health",
         ) from exc
-    return canonical
-
-
-normalize_long_video_output = _normalise_output
+    _validate_json_aux(output, integration_id)
+    return output
 
 
 def _filtered_kwargs(function: Callable[..., Any], values: Mapping[str, Any]) -> dict[str, Any]:
@@ -1152,6 +1094,12 @@ class _ExternalAdapterBase:
                 prompt=self.prompt,
                 cache_mode=self.cache_mode,
                 preprocess_profile=self.preprocess_profile,
+                extra_aux={
+                    "forward_seconds": time.perf_counter() - started,
+                    "implementation_source": self.implementation_source,
+                    "backend": self.backend,
+                    "cache_owner": getattr(self, "cache_owner", None),
+                },
             )
         except (LongVideoAssetError, LongVideoWorkerError):
             raise
@@ -1161,19 +1109,7 @@ class _ExternalAdapterBase:
                 integration_id=self.integration_id,
                 code="forward_failed",
             ) from exc
-        return _with_canonical_aux(
-            output,
-            integration_id=self.integration_id,
-            feature_stage=self.feature_stage,
-            prompt=self.prompt,
-            cache_mode=self.cache_mode,
-            extra={
-                "forward_seconds": time.perf_counter() - started,
-                "implementation_source": self.implementation_source,
-                "backend": self.backend,
-                "cache_owner": getattr(self, "cache_owner", None),
-            },
-        )
+        return output
 
     # Upstream wrappers often call this operation ``encode_video``.  Keep it
     # as a thin alias while preserving the framework's canonical ``encode``.
@@ -1284,7 +1220,7 @@ def _coerce_cache_view(
         if axis <= 0 or axis >= len(shape):
             raise ValueError(f"sequence_axis={sequence_axis} 对 shape={shape} 无效")
         sequence_length = shape[axis]
-        timeline = _timeline_from_value(timeline_value, chunk, sequence_length)
+        timeline = _timeline_from_value(timeline_value)
         if timeline is None:
             timeline = _timeline_for_batch(chunk, sequence_length)
         return CacheView(
@@ -1447,21 +1383,13 @@ class ExternalStreamingVideoAdapter(_ExternalAdapterBase, StreamingVideoEncoderA
                     prompt=self.prompt,
                     cache_mode=compression_name,
                     preprocess_profile=self.preprocess_profile,
-                )
-            )
-            if output is not None:
-                output = _with_canonical_aux(
-                    output,
-                    integration_id=self.integration_id,
-                    feature_stage=self.feature_stage,
-                    prompt=self.prompt,
-                    cache_mode=compression_name,
-                    extra={
+                    extra_aux={
                         "implementation_source": self.implementation_source,
                         "backend": self.backend,
                         "cache_owner": getattr(self, "cache_owner", None),
                     },
                 )
+            )
             if worker_state is _MISSING:
                 worker_state = state.opaque
             if isinstance(worker_state, StreamState):
@@ -1581,21 +1509,7 @@ class ExternalStreamingVideoAdapter(_ExternalAdapterBase, StreamingVideoEncoderA
         if raw is None:
             return None
         batch = self._last_chunks.get(state.video_id)
-        if isinstance(raw, EncoderOutput):
-            return _with_canonical_aux(
-                raw,
-                integration_id=self.integration_id,
-                feature_stage=self.feature_stage,
-                prompt=self.prompt,
-                cache_mode=self.cache_mode,
-            )
-        if batch is None:
-            raise LongVideoWorkerError(
-                f"{self.integration_id} finalize 返回原始张量但没有可用 chunk timeline",
-                integration_id=self.integration_id,
-                code="invalid_output",
-            )
-        output = _normalise_output(
+        return _normalise_output(
             raw,
             batch,
             integration_id=self.integration_id,
@@ -1603,14 +1517,7 @@ class ExternalStreamingVideoAdapter(_ExternalAdapterBase, StreamingVideoEncoderA
             prompt=self.prompt,
             cache_mode=self.cache_mode,
             preprocess_profile=self.preprocess_profile,
-        )
-        return _with_canonical_aux(
-            output,
-            integration_id=self.integration_id,
-            feature_stage=self.feature_stage,
-            prompt=self.prompt,
-            cache_mode=self.cache_mode,
-            extra={
+            extra_aux={
                 "implementation_source": self.implementation_source,
                 "backend": self.backend,
                 "cache_owner": getattr(self, "cache_owner", None),
@@ -1631,7 +1538,6 @@ class ExternalStreamingVideoAdapter(_ExternalAdapterBase, StreamingVideoEncoderA
 
 __all__ = [
     "DEFAULT_NEUTRAL_PROMPT",
-    "build_token_timeline",
     "ExternalFixedVideoAdapter",
     "ExternalAssetError",
     "ExternalPythonWorker",
@@ -1643,5 +1549,4 @@ __all__ = [
     "StructuredLongVideoError",
     "MissingAssetError",
     "MissingLongVideoAssetError",
-    "normalize_long_video_output",
 ]
